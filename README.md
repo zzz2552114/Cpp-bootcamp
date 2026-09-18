@@ -39,16 +39,11 @@
 
 ### 构建方式
 
-该训练营包含若干 C++ 代码文件，位于各章节目录下，建议深入研读。每个代码文件均可编译为与其同名的可执行文件。请使用 CMake 构建这些可执行文件，以下命令应能完成全部可执行文件的构建：
+该训练营包含若干 C++ 代码文件，位于各章节目录下，建议深入研读。每个代码文件均可编译为与其同名的可执行文件。***我删除了 cmake 统一编译，因为这里的 cmake 根本不是什么组合成一个，而是帮你批量单独编译***
 
 ```bash
-mkdir build
-cd build
-cmake ..      # 调用 CMake 工具，去上级目录寻找 CMakeLists.txt
-make -j8      # 调用 Make 工具编译，-j 表示并行，8 表示最多使用 8 个 CPU 核心
+g++ -std=c++20 -O2 <file> -o <destination>
 ```
-
-执行这些命令后，生成的可执行文件将位于 `build` 目录中。例如 `1 - References and Move Semantics/references.cpp` 会编译为 `references` 可执行文件，位于 `./build` 目录下。其余代码文件亦是如此。
 
 ---
 
@@ -100,12 +95,8 @@ make -j8        # 编译全部测试
 make check      # 编译 + 运行全部测试（含 P4.5 的洛谷式对拍）
 make demo       # 额外编译"会死锁"的演示程序 p6_2_bank_deadlock
 
-# 方式 B：CMake
-cd projects/solutions
-cmake -S . -B build && cmake --build build -j
-ctest --test-dir build --output-on-failure
 
-# 方式 C：单独编译某一题
+# 方式 B：单独编译某一题
 g++ -std=c++17 -pthread -I. -O2 -o /tmp/t stage6/p6_3_blocking_queue_test.cpp && /tmp/t
 ```
 
