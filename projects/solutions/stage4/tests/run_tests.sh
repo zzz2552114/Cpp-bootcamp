@@ -11,9 +11,9 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 # 默认 CLI 相对【脚本自身位置】解析（solutions/build/...），与调用者的 CWD 无关
 CLI="${1:-$HERE/../../build/p4_5_log_analyzer_cli}"
 if [ ! -x "$CLI" ]; then
-  echo "找不到 CLI: $CLI"
-  echo "请先构建：  cd \"$HERE/../..\" && make all"
-  echo "（或 cmake -S . -B build && cmake --build build）"
+  echo "CLI not found or not executable: $CLI"
+  echo "Build it first, then pass its path as the first argument, e.g.:"
+  echo "  ./run_tests.sh ./p4_5_log_analyzer_cli"
   exit 127
 fi
 
@@ -24,7 +24,7 @@ for inp in "$HERE"/case*.in; do
   ans="$HERE/$name.ans"
   got=$(mktemp)
   if ! "$CLI" < "$inp" > "$got" 2>/dev/null; then
-    echo "[RE] $name  (运行失败)"
+    echo "[RE] $name  (runtime error)"
     fail=$((fail + 1))
     rm -f "$got"
     continue
@@ -34,8 +34,8 @@ for inp in "$HERE"/case*.in; do
     pass=$((pass + 1))
   else
     echo "[WA] $name"
-    echo "  --- 期望(前5行) ---"; head -5 "$ans" | sed 's/^/  /'
-    echo "  --- 实际(前5行) ---"; head -5 "$got" | sed 's/^/  /'
+    echo "  --- expected (first 5 lines) ---"; head -5 "$ans" | sed 's/^/  /'
+    echo "  --- actual   (first 5 lines) ---"; head -5 "$got" | sed 's/^/  /'
     fail=$((fail + 1))
   fi
   rm -f "$got"

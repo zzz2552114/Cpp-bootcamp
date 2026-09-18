@@ -146,4 +146,4 @@ BT_TEST(P4_3, operator_bracket_default_requires_default_constructible) {
   BT_CHECK_EQ(m.at("k"), std::string("abc"));
 }
 
-BT_MAIN("P4.3 unordered_map：operator[] 陷阱 + 自定义 hash")
+BT_MAIN("Test Suite p4_3_unordered_custom_key_test.cpp")

@@ -36,13 +36,15 @@ template <typename F> void RunThreadsIdx(int n, F fn) {
 #ifdef DEMO_DEADLOCK
 namespace {
 void DemoDeadlock() {
-  std::cerr << "[demo] 两个线程以相反顺序加锁，预期死锁（Ctrl-C 退出）...\n" << std::flush;
+  std::cerr << "[demo] Two threads lock in opposite order; deadlock expected "
+               "(press Ctrl-C to quit)...\n"
+            << std::flush;
   Account a(1000), b(1000);
   std::thread t1([&] { for (int i = 0; i < 100; ++i) a.TransferNaive(b, 1); });
   std::thread t2([&] { for (int i = 0; i < 100; ++i) b.TransferNaive(a, 1); });
   t1.join();
   t2.join();
-  std::cerr << "[demo] 居然没死锁？\n";
+  std::cerr << "[demo] No deadlock happened?!\n";
 }
 }  // namespace
 #endif
@@ -177,5 +179,5 @@ int main(int argc, char **argv) {
   }
 #endif
   (void)argc; (void)argv;
-  return bt::RunAll("P6.2 银行转账与多锁死锁");
+  return bt::RunAll("P6.2 Bank Transfer & Multi-lock Deadlock");
 }

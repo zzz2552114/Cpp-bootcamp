@@ -158,4 +158,4 @@ BT_TEST(P4_4, structured_binding_large_map_1e5) {
   BT_CHECK_EQ(sum, 1LL * n * (n - 1) / 2);
 }
 
-BT_MAIN("P4.4 auto / decltype / 结构化绑定")
+BT_MAIN("Test Suite p4_4_auto_decltype_test.cpp")

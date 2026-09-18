@@ -64,7 +64,7 @@ BT_TEST(P1_5, timing_copy_vs_move_informational) {
   auto copy_us = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
   auto move_us = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
 
-  std::cout << "        [参考] copy=" << copy_us << "us  move=" << move_us
+  std::cout << "        [Reference] copy=" << copy_us << "us  move=" << move_us
             << "us  ratio=" << (move_us ? copy_us / move_us : 0) << "x\n";
 
   BT_CHECK_EQ(copied.size(), n);
@@ -95,4 +95,4 @@ BT_TEST(P1_5, moved_from_vector_is_reusable) {
   BT_CHECK_EQ(b.size(), static_cast<size_t>(10));
 }
 
-BT_MAIN("P1.5 拷贝 vs 移动（元素级代价 + 计时）")
+BT_MAIN("Test Suite p1_5_bench_test.cpp")

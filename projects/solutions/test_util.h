@@ -4,7 +4,7 @@
 // 用法：
 //   #include "test_util.h"
 //   BT_TEST(名字) { BT_CHECK(...); BT_CHECK_EQ(a, b); BT_CHECK_THROWS(expr, ExType); }
-//   BT_MAIN("P1.3 MoveOnlyBuffer")
+//   BT_MAIN("Test Suite test_util.h")
 //
 // 编译：g++ -std=c++17 -pthread -I <solutions目录> xxx_test.cpp -o xxx && ./xxx
 #pragma once
@@ -57,17 +57,17 @@ inline int RunAll(const std::string &suite) {
       ++failed;
     } catch (const std::exception &e) {
       std::cout << label.str() << "FAIL  " << tc.name << "\n"
-                << "        未预期的异常: " << e.what() << "\n";
+                << "        Unexpected exception: " << e.what() << "\n";
       ++failed;
     } catch (...) {
       std::cout << label.str() << "FAIL  " << tc.name << "\n"
-                << "        未预期的未知异常\n";
+                << "        Unexpected unknown exception\n";
       ++failed;
     }
   }
   int total = passed + failed;
-  std::cout << "---------------- 结果: " << passed << "/" << total << " 通过";
-  if (failed) std::cout << "  (" << failed << " 个失败)";
+  std::cout << "---------------- Result: " << passed << "/" << total << " Passed";
+  if (failed) std::cout << "  (" << failed << " Failed)";
   std::cout << " ----------------\n";
   return failed == 0 ? 0 : 1;
 }
@@ -77,8 +77,8 @@ template <typename A, typename B>
 inline void CheckEqImpl(const A &a, const B &b, const char *sa, const char *sb, int line) {
   if (!(a == b)) {
     std::ostringstream oss;
-    oss << "CHECK_EQ 失败: " << sa << " == " << sb << "  [左=" << a << ", 右=" << b
-        << "]  (第 " << line << " 行)";
+    oss << "CHECK_EQ Failed: " << sa << " == " << sb << "  [Left=" << a << ", Right=" << b
+        << "]  (Line " << line << ")";
     throw Failure{oss.str()};
   }
 }
@@ -87,7 +87,7 @@ template <typename A, typename B>
 inline void CheckNeImpl(const A &a, const B &b, const char *sa, const char *sb, int line) {
   if (a == b) {
     std::ostringstream oss;
-    oss << "CHECK_NE 失败: " << sa << " != " << sb << "  [两边都是 " << a << "]  (第 " << line << " 行)";
+    oss << "CHECK_NE Failed: " << sa << " != " << sb << "  [Both are " << a << "]  (Line " << line << ")";
     throw Failure{oss.str()};
   }
 }
@@ -101,16 +101,16 @@ inline void CheckThrowsImpl(Fn fn, const char *expr, int line) {
     return;  // 正确
   } catch (const std::exception &e) {
     std::ostringstream oss;
-    oss << "CHECK_THROWS 失败: " << expr << " 抛出了错误的异常 (what=" << e.what()
-        << ")  (第 " << line << " 行)";
+    oss << "CHECK_THROWS Failed: " << expr << " threw wrong exception (what=" << e.what()
+        << ")  (Line " << line << ")";
     throw Failure{oss.str()};
   } catch (...) {
     std::ostringstream oss;
-    oss << "CHECK_THROWS 失败: " << expr << " 抛出了非标准异常  (第 " << line << " 行)";
+    oss << "CHECK_THROWS Failed: " << expr << " threw non-standard exception  (Line " << line << ")";
     throw Failure{oss.str()};
   }
   std::ostringstream oss;
-  oss << "CHECK_THROWS 失败: " << expr << " 没有抛出任何异常  (第 " << line << " 行)";
+  oss << "CHECK_THROWS Failed: " << expr << " did not throw any exception  (Line " << line << ")";
   throw Failure{oss.str()};
 }
 
@@ -128,7 +128,7 @@ inline void CheckThrowsImpl(Fn fn, const char *expr, int line) {
   do {                                                                       \
     if (!(cond)) {                                                           \
       std::ostringstream _bt_oss;                                            \
-      _bt_oss << "CHECK 失败: " #cond "  (第 " << __LINE__ << " 行)";         \
+      _bt_oss << "CHECK Failed: " #cond "  (Line " << __LINE__ << ")";       \
       throw ::bt::Failure{_bt_oss.str()};                                    \
     }                                                                        \
   } while (0)

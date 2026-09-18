@@ -137,4 +137,4 @@ BT_TEST(P2_2, interleaved_ops_keep_size_consistent) {
   BT_CHECK_EQ(s.Size(), static_cast<size_t>(100));
 }
 
-BT_MAIN("P2.2 模板类 Stack")
+BT_MAIN("Test Suite p2_2_stack_test.cpp")

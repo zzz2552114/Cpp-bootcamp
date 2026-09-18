@@ -113,7 +113,7 @@ BT_TEST(P6_4, readers_run_in_parallel) {
       active.fetch_sub(1);
     }
   });
-  std::cout << "        [参考] 观测到的最大并发读者数 = " << max_active.load() << "\n";
+  std::cout << "        [Reference] Max observed concurrent readers = " << max_active.load() << "\n";
   BT_CHECK_EQ(active.load(), 0);
   BT_CHECK(max_active.load() >= 2);          // 读锁之间确实共享
 }
@@ -204,4 +204,4 @@ BT_TEST(P6_4, stress_repeated_rounds) {
   }
 }
 
-BT_MAIN("P6.4 读写锁并发 Map")
+BT_MAIN("Test Suite p6_4_rwlock_map_test.cpp")

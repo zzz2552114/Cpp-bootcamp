@@ -63,7 +63,7 @@ int main() {
   // 有两个函数可以向向量后端追加数据。
   // 它们是 push_back 和 emplace_back。
   // 通常，emplace_back 稍微快一些，
-  // 因为它将构造函数参数转发给对象的构造函数并就地构造对象，
+  // 因为它将构造函数参数转发给对象的构造函数并就地构造对象，！！！！
   // 而 push_back 先构造对象，然后将其移动到向量中的内存。
   // 我们可以在这里看到，我们向向量中添加两个 Point 对象。
   std::cout << "Appending to the point_vector via push_back:\n";
@@ -139,7 +139,7 @@ int main() {
   // 第三个参数是一个条件 lambda 类型（参见 C++ 中的 std::function 库，
   // 或者在 https://en.cppreference.com/w/cpp/utility/functional/function），
   // 它接受一个参数，该参数应该代表我们正在过滤的向量中的每个元素。
-  // 这个函数应该返回一个布尔值，如果元素要被过滤掉则为 true，否则为 false。
+  // 这个函数应该返回一个布尔值，如果元素要被过滤掉则为 true，否则为 false。！！！！
   // std::remove_if 返回一个指向容器中应该被消除的第一个元素的迭代器。
   // 请记住，它会根据需要交换元素，
   // 将需要删除的元素分区到它返回的迭代器值之后。

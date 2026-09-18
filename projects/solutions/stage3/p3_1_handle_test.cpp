@@ -120,4 +120,4 @@ BT_TEST(P3_1, chained_moves_leave_one_live) {
   BT_CHECK_EQ(Handle::live, live0);
 }
 
-BT_MAIN("P3.1 RAII 句柄 + RVO")
+BT_MAIN("Test Suite p3_1_handle_test.cpp")

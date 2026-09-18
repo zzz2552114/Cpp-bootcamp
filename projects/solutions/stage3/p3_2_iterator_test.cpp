@@ -176,4 +176,4 @@ BT_TEST(P3_2, independent_iterators_do_not_interfere) {
   BT_CHECK_EQ(*b, 2);
 }
 
-BT_MAIN("P3.2 双向迭代器（--End / range-for / 引用解引用）")
+BT_MAIN("Test Suite p3_2_iterator_test.cpp")

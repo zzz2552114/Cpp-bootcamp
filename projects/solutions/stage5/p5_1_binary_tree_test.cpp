@@ -158,4 +158,4 @@ BT_TEST(P5_1, stress_reinsert_same_values_keeps_size) {
   BT_CHECK_EQ(t.Height(), 1000);
 }
 
-BT_MAIN("P5.1 unique_ptr 二叉树")
+BT_MAIN("Test Suite p5_1_binary_tree_test.cpp")

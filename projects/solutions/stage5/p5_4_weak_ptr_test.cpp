@@ -161,4 +161,4 @@ BT_TEST(P5_4, many_cycles_cleaned_up) {
   ResetLive();
 }
 
-BT_MAIN("P5.4 weak_ptr 与循环引用")
+BT_MAIN("Test Suite p5_4_weak_ptr_test.cpp")

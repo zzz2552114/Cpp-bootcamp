@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string>
 #include <type_traits>
+#include <utility>
 
 #include "test_util.h"
 #include "p2_1_functions.h"
@@ -17,6 +18,13 @@ struct Tracked {        // 统计拷贝次数，用来验证"形参是 const& �
 };
 int Tracked::copies = 0;
 }  // namespace
+
+// 测评侧的类型探测工具：只关心"Min(a,b) 这个调用能不能成立"，与你的实现无关。
+// 原理属于 SFINAE，不是本阶段的考点（详见 stage2.md 的说明）。
+template <typename A, typename B, typename = void> struct CanDeduceMin : std::false_type {};
+template <typename A, typename B>
+struct CanDeduceMin<A, B, std::void_t<decltype(Min(std::declval<A>(), std::declval<B>()))>>
+    : std::true_type {};
 
 struct Money {          // 自定义类型：只要提供 operator<，模板就能用
   int cents;
@@ -99,4 +107,4 @@ BT_TEST(P2_1, params_are_const_ref_not_by_value) {
   BT_CHECK_EQ(b.v, 2);
 }
 
-BT_MAIN("P2.1 模板函数")
+BT_MAIN("Test Suite p2_1_functions_test.cpp")

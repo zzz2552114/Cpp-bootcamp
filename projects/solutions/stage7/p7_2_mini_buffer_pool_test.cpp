@@ -262,4 +262,4 @@ BT_TEST(P7_2, stale_pointer_caveat_is_real) {
   pool.Unpin(2);
 }
 
-BT_MAIN("P7.2 Mini BufferPool")
+BT_MAIN("Test Suite p7_2_mini_buffer_pool_test.cpp")

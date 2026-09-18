@@ -157,4 +157,4 @@ BT_TEST(P1_3, buffer_is_usable_inside_std_vector) {
   BT_CHECK_EQ(v[0][0], 9);
 }
 
-BT_MAIN("P1.3 MoveOnlyBuffer（移动语义 / self-move / 无泄漏）")
+BT_MAIN("Test Suite p1_3_buffer_test.cpp")

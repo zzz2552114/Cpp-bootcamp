@@ -149,11 +149,12 @@ BT_TEST(P5_2, widget_counter_is_balanced_after_all_tests) {
 namespace {
 // 只在显式传 --demo-reset-self 时运行：会 double free（预期 abort）
 void DemoResetSelf() {
-  std::cerr << "[demo] up.reset(up.get()) —— 标准语义会先 delete 掉 old，再留下悬垂指针\n"
+  std::cerr << "[demo] up.reset(up.get()) -- standard semantics delete 'old' first, "
+               "leaving a dangling pointer\n"
             << std::flush;
   auto up = Make(7);
   up.reset(up.get());
-  std::cerr << "[demo] 走到这里说明没有崩（未定义行为，不要依赖）\n";
+  std::cerr << "[demo] Reached here without crashing (UB -- do not rely on it)\n";
 }
 }  // namespace
 
@@ -162,5 +163,5 @@ int main(int argc, char **argv) {
     DemoResetSelf();
     return 0;
   }
-  return bt::RunAll("P5.2 所有权传参（借用 / 非拥有 / 移交）");
+  return bt::RunAll("P5.2 Ownership Passing (borrow / observe / take)");
 }

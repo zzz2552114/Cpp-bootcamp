@@ -94,4 +94,4 @@ BT_TEST(P2_3, constexpr_if_discards_branch_so_it_still_compiles) {
   BT_CHECK_EQ(ToString(std::string("x")), std::string("non-numeric"));
 }
 
-BT_MAIN("P2.3 特化 / 非类型参数 / constexpr if")
+BT_MAIN("Test Suite p2_3_specialization_test.cpp")

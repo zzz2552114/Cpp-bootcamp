@@ -236,4 +236,4 @@ BT_TEST(P6_3, stress_repeated_rounds) {
   }
 }
 
-BT_MAIN("P6.3 有界阻塞队列")
+BT_MAIN("Test Suite p6_3_blocking_queue_test.cpp")

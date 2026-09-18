@@ -122,4 +122,4 @@ BT_TEST(P4_2, set_is_sorted_after_random_inserts) {
   for (size_t i = 1; i < got.size(); ++i) BT_CHECK(got[i - 1] < got[i]);
 }
 
-BT_MAIN("P4.2 set / map：有序、去重、比较器")
+BT_MAIN("Test Suite p4_2_set_comparator_test.cpp")

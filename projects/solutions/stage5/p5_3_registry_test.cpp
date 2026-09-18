@@ -133,4 +133,4 @@ BT_TEST(P5_3, many_gets_and_releases_balance) {
   BT_CHECK_EQ(User::live, live0 + 1);
 }
 
-BT_MAIN("P5.3 shared_ptr 注册表")
+BT_MAIN("Test Suite p5_3_registry_test.cpp")

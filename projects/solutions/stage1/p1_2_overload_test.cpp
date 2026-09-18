@@ -46,4 +46,4 @@ BT_TEST(P1_2, const_rvalue_picks_const_ref) {
   BT_CHECK_EQ(Which(std::move(c)), std::string("const lvalue ref"));
 }
 
-BT_MAIN("P1.2 重载解析（lvalue / const lvalue / rvalue）")
+BT_MAIN("Test Suite p1_2_overload_test.cpp")

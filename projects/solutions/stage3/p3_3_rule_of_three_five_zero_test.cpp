@@ -14,7 +14,7 @@ using namespace r3;
 
 namespace {
 void DemoDoubleFree() {
-  std::cout << "[demo] 浅拷贝两个 NaiveList（共享同一批节点），准备析构...\n" << std::flush;
+  std::cout << "[demo] Shallow copy two NaiveLists, prepare to destruct...\n" << std::flush;
   NaiveList a;
   a.Push(1);
   a.Push(2);

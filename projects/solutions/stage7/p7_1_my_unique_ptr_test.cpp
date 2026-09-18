@@ -229,4 +229,4 @@ BT_TEST(P7_1, lifetime_matches_std_unique_ptr_in_simple_use) {
   BT_CHECK_EQ(Foo::live, 0);
 }
 
-BT_MAIN("P7.1 手写 MyUniquePtr")
+BT_MAIN("Test Suite p7_1_my_unique_ptr_test.cpp")

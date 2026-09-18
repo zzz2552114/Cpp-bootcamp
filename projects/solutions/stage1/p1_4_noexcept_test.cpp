@@ -73,4 +73,4 @@ BT_TEST(P1_4, why_it_matters_vector_of_moveonly_uses_move) {
   BT_CHECK_EQ(v[1].v, 2);
 }
 
-BT_MAIN("P1.4 noexcept 与 vector 扩容（move_if_noexcept）")
+BT_MAIN("Test Suite p1_4_noexcept_test.cpp")

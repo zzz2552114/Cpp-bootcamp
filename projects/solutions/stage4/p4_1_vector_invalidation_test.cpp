@@ -150,4 +150,4 @@ BT_TEST(P4_1, large_reserve_then_push_no_realloc) {
   BT_CHECK_EQ(v.size(), n);
 }
 
-BT_MAIN("P4.1 vector：迭代器失效 / reserve vs resize")
+BT_MAIN("Test Suite p4_1_vector_invalidation_test.cpp")

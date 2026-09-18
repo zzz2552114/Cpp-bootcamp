@@ -49,21 +49,19 @@ g++ -std=c++20 -O2 <file> -o <destination>
 
 ## 二、配套 Project（本仓库特有）
 
-在读完每一章的训练营源文件后，可以进入 `projects/` 完成对应阶段的编程题。覆盖 **7 个阶段、共 29 道题**，每道题都配有**分级测试点**与**带详细注释的参考解答**。
+在读完每一章的训练营源文件后，可以进入 `projects/` 完成对应阶段的编程题。覆盖 **7 个阶段、共 28 道题**，每道题都配有**分级测试点**与**带详细注释的参考解答**。
 
 ```text
 projects/
-├── README.md            # 路线图与使用方式
-├── REVIEW.md            # 对题目设计的评审（含实测踩坑记录）
-├── problems/            # 题目：stage1.md ~ stage7.md
-└── solutions/           # 参考解答 + 测试点
-    ├── test_util.h               # 测试框架
-    ├── Makefile / CMakeLists.txt # 两套等价构建
-    ├── stage1/ ... stage7/       # pX_Y_<topic>.h（答案）+ pX_Y_<topic>_test.cpp（测试）
-    └── stage4/tests/             # P4.5 多测试点测试
+├── README.md            # 路线图与使用方式（含编译命令速查）
+├── REVIEW.md            # 对早期题目设计的评审（历史记录）
+├── problems/            # ★ 题目：stage1.md ~ stage7.md（逐字读这个）
+├── mysol/               # ★ 你的解答写在这里
+└── solutions/           # 参考解答 + 测评程序（只读）
+    ├── test_util.h               # 测评框架（BT_TEST / BT_CHECK / BT_MAIN）
+    ├── stage1/ ... stage7/       # pX_Y_<topic>.h（答案）+ pX_Y_<topic>_test.cpp（测评）
+    └── stage4/tests/             # P4.5 的 stdin/stdout 对拍用例
 ```
-
-### 阶段总览
 
 ### 阶段总览
 
@@ -79,43 +77,42 @@ projects/
 
 ### 使用方式
 
-1. 顺序读 Bootcamp 源文件，可参考我的笔记 。
-2. 读完对应文件后，打开 `projects/problems/stageN.md` 做该阶段项目。
-3. 再对照 `projects/solutions/stageN/`：`pX_Y_*.h` 是带详细注释的参考实现，`pX_Y_*_test.cpp` 是分级测试点，逐条打印 `PASS/FAIL` 并给出 `结果: N/M 通过`。
-4. 遇到卡住的点，回到 repo 对应 `.cpp` 逐行重看。
+1. 顺序读 Bootcamp 源文件，可参考我的笔记。
+2. 读完对应文件后，打开 `projects/problems/stageN.md`。每道题都写清了：**要你设计出什么、测评程序
+   要求哪些接口、每个接口为什么长这样、测评点在查什么、怎么编译运行**。
+3. 在 `projects/mysol/stageN/` 下写你的 `.h`（只写头文件，**不要写 `main()`**），
+   把对应的测评文件从 `projects/solutions/stageN/` 复制到同一目录，然后编译运行。
+4. 遇到卡住的点，回到 repo 对应 `.cpp` 逐行重看，或对照 `solutions/stageN/pX_Y_*.h` 的参考实现。
 
 ### 构建与测试
 
-`solutions/` 下每个 Project 都是 **`实现.h`（答案）+ `_test.cpp`（测试）**，共用框架 `test_util.h`。
+每个 Project 要求你实现一个头文件（例如 `p1_1_statistics.h`），测评程序（例如
+`p1_1_statistics_test.cpp`）自带 `main()`。把测评文件复制到你的头文件旁边，用**尽可能精简的命令**编译：
 
 ```bash
-# 方式 A：Makefile（推荐，无需 cmake）
-cd projects/solutions
-make -j8        # 编译全部测试
-make check      # 编译 + 运行全部测试（含 P4.5 的洛谷式对拍）
-make demo       # 额外编译"会死锁"的演示程序 p6_2_bank_deadlock
-
-
-# 方式 B：单独编译某一题
-g++ -std=c++17 -pthread -I. -O2 -o /tmp/t stage6/p6_3_blocking_queue_test.cpp && /tmp/t
+# 在 projects/mysol/stage1/ 下（单文件题）
+g++ -std=c++17 p1_1_statistics_test.cpp -I../../solutions -o p1_1 && ./p1_1
 ```
 
-`make check` 的典型输出：
+- 并发题（stage6 全部、P7.2）加 `-pthread`；
+- 多文件题（P2.4、P3.4）把你的 `.cpp` 一起写进命令；
+- 完整的命令速查表见 [`projects/README.md`](projects/README.md)。
+
+典型输出（测评程序输出为英文，避免终端中文乱码）：
 
 ```text
-  [OK]   p1_3_buffer_test                     结果: 17/17
-  [OK]   p3_2_iterator_test                   结果: 17/17
-  [OK]   p7_2_mini_buffer_pool_test           结果: 16/16
-  [OK]   p4_5_luogu_cases                     ---------------- AC 14 / 14 ----------------
-================================================================
-  测试套件: 29 个   失败: 0 个
+================ Test Suite p1_3_buffer_test.cpp ================
+[  1] PASS  P1_3/construct_and_size
+[  2] PASS  P1_3/elements_are_zero_initialized
+...
+---------------- Result: 17/17 Passed ----------------
 ```
 
 ### 三种测试形态
 
 | 形态 | 覆盖 | 位置 |
 | :--: | :--: | :-- |
-| ① 分级单元测试点 | 全部 29 个套件 | `stageN/pX_Y_*_test.cpp` |
+| ① 分级单元测试点 | 全部 28 个分级套件 | `stageN/pX_Y_*_test.cpp` |
 | ② stdin/stdout 对拍 | P4.5 | `stage4/tests/`（`case*.in` / `case*.ans` / `run_tests.sh`） |
 | ③ 随机对拍（vs 独立参考实现） | P1.5 / P4.5 / P5.1 / P6.1 / P7.2 | 各 `_test.cpp` 里的 `stress_*` 测试点 |
 
@@ -125,10 +122,10 @@ P4.5 的 `.ans` 由**独立的 Python 朴素实现**生成（`stage4/tests/gen_c
 
 | 题目 | 命令 | 预期现象 |
 | :--: | :-- | :-- |
-| P3.1 | 加 `-fno-elide-constructors` 重新编译 | 出现额外的 move-ctor（平时 0 次移动） |
-| P3.3 | `./build/p3_3_rule_of_three_five_zero_test --demo-double-free` | `free(): double free detected` → abort |
-| P5.2 | `./build/p5_2_ownership_test --demo-reset-self` | 同上（`reset(get())` 的后果） |
-| P6.2 | `make demo && timeout 5 ./build/p6_2_bank_deadlock --demo-deadlock` | 挂起（exit 124 = 真死锁） |
+| P3.1 | 加 `-fno-elide-constructors` 重新编译 | 观察拷贝消除被关闭后的构造/移动差异（实验，非通过标准） |
+| P3.3 | `./p3_3 --demo-double-free` | `free(): double free detected` → abort |
+| P5.2 | `./p5_2 --demo-reset-self` | 同上（`reset(get())` 的后果） |
+| P6.2 | `g++ -std=c++17 -pthread -DDEMO_DEADLOCK ...`，再 `timeout 5 ./out --demo-deadlock` | 挂起（exit 124 = 真死锁） |
 
 
 
