@@ -31,15 +31,15 @@
 
 ### 1.1 测评程序怎么用（回顾）
 
-`projects/solutions/stage6/*_test.cpp` 是测评程序，**自带 `main()`**；你只写头文件，不要写 `main()`。
+`projects/tests/stage6/*_test.cpp` 是测评程序，**自带 `main()`**；你只写头文件，不要写 `main()`。
 断言宏说明见 `stage1.md` 第 1.1 节。流程：在 `projects/mysol/stage6/` 下写 `.h`，复制测评文件，再编译。
 
 ```bash
 mkdir -p projects/mysol/stage6
-cp projects/solutions/stage6/p6_1_counter_test.cpp         projects/mysol/stage6/
-cp projects/solutions/stage6/p6_2_bank_test.cpp            projects/mysol/stage6/
-cp projects/solutions/stage6/p6_3_blocking_queue_test.cpp  projects/mysol/stage6/
-cp projects/solutions/stage6/p6_4_rwlock_map_test.cpp      projects/mysol/stage6/
+cp projects/tests/stage6/p6_1_counter_test.cpp         projects/mysol/stage6/
+cp projects/tests/stage6/p6_2_bank_test.cpp            projects/mysol/stage6/
+cp projects/tests/stage6/p6_3_blocking_queue_test.cpp  projects/mysol/stage6/
+cp projects/tests/stage6/p6_4_rwlock_map_test.cpp      projects/mysol/stage6/
 ```
 
 ### 1.2 数据竞争是未定义行为，不只是"算错"
@@ -131,25 +131,23 @@ cv.wait(lk, []{ return count == 2; });   // 带谓词的等待
 - **类型**：主线（src 的 mutex.cpp / scoped_lock.cpp）
 - **考什么**：亲手复现数据竞争，然后分别用手动锁和 RAII 锁修正；`const` 成员里的 `mutable mutex`。
 - **你要写**：`projects/mysol/stage6/p6_1_counter.h`。只写头文件。
-- **复制过来的测评文件**：`solutions/stage6/p6_1_counter_test.cpp`。测评点数：13。
+- **复制过来的测评文件**：`tests/stage6/p6_1_counter_test.cpp`。测评点数：13。
 
-**测评程序要求 `namespace counter6` 里提供：**
+**测评程序会用到的接口（名字必须一致）：**
 
 ```cpp
 struct UnsafeCounter {              // 反面教材：无锁
-  int value = 0;
+  int value;                        // 公开：测评直接读它
   void Increment(int iters);        // 每次：读 value → yield → 写回 value+1
 };
 
 struct LockedCounter {              // 手写 lock / unlock
-  int value = 0;
-  std::mutex m;
+  int value;                        // 公开
   void Increment(int iters);
 };
 
 struct ScopedCounter {              // RAII：scoped_lock
-  int value = 0;
-  std::mutex m;
+  int value;                        // 公开
   void Increment(int iters);
 };
 
@@ -157,16 +155,20 @@ class Counter {                     // 正式封装
 public:
   void Increment();                 // ++value_
   void Add(int n);                  // value_ += n
-  int  Get() const;                 // 加锁后读（所以 mutex 必须 mutable）
+  int  Get() const;                 // 加锁后读
   void Reset();                     // value_ = 0
-private:
-  int value_ = 0;
-  mutable std::mutex m_;
 };
 
 // 起 nthreads 个线程各调 iters 次 Increment()，join 后返回 Get()
 inline int RunCounter(Counter& c, int nthreads, int iters);
 ```
+
+下面这些内部成员由你自己设计：
+
+- `LockedCounter` / `ScopedCounter` 各自需要一把 `std::mutex` 成员；**`UnsafeCounter` 不要加锁**——
+  它就是用来稳定复现竞态的，加了锁反而测不出丢失更新。
+- `Counter` 需要一个 `int` 计数成员和一把互斥锁成员。注意 `Get()` 是 `const` 成员却要加锁，
+  所以锁成员必须能在 `const` 函数里被修改（该加哪个关键字见 1.3）。
 
 **为什么是这些签名：**
 
@@ -187,7 +189,7 @@ inline int RunCounter(Counter& c, int nthreads, int iters);
 
 ```bash
 cd projects/mysol/stage6
-g++ -std=c++17 -pthread p6_1_counter_test.cpp -I../../solutions -o p6_1 && ./p6_1
+g++ -std=c++17 -pthread p6_1_counter_test.cpp -I../../tests -o p6_1 && ./p6_1
 ```
 
 通过标准：`Result: 13/13 Passed`。
@@ -201,9 +203,9 @@ g++ -std=c++17 -pthread p6_1_counter_test.cpp -I../../solutions -o p6_1 && ./p6_
 - **类型**：主线（src 的 scoped_lock.cpp）＋ 可选死锁演示（第 1.4 节）
 - **考什么**：多把锁同时获取、死锁的成因与规避、自转账、余额检查与扣款在同一临界区。
 - **你要写**：`projects/mysol/stage6/p6_2_bank.h`。只写头文件。
-- **复制过来的测评文件**：`solutions/stage6/p6_2_bank_test.cpp`。测评点数：12。
+- **复制过来的测评文件**：`tests/stage6/p6_2_bank_test.cpp`。测评点数：12。
 
-**测评程序要求 `namespace bank6` 里提供：**
+**测评程序会用到的接口（名字必须一致）：**
 
 ```cpp
 class Account {
@@ -212,21 +214,18 @@ public:
   void Transfer(Account& other, int money);   // 先从本账户扣，再加到 other
   int  Balance() const;                       // 线程安全
   void Deposit(int money);                    // 线程安全
-
-#ifdef DEMO_DEADLOCK
-  // 只在编译时定义了 DEMO_DEADLOCK 才需要：故意制造死锁的版本
-  void TransferNaive(Account& other, int money);  // m_.lock(); sleep; other.m_.lock(); ...; unlock
-#endif
-
-private:
-  int balance_;
-  mutable std::mutex m_;
 };
 
 // 求和；用模板是为了能接收 std::deque<Account>（Account 含 mutex，不可移动）
 template <typename Container>
 long long TotalBalance(const Container& accts);
 ```
+
+另外：
+
+- `Account` 内部需要一个余额成员和一把互斥锁成员；`Balance()` 是 `const` 成员却要加锁（关键字见 1.3）。
+- 还需要一个**只在定义了 `DEMO_DEADLOCK` 时才编译**的 `TransferNaive(Account&, int)`：
+  先锁自己、睡一小会儿、再锁对方。它只是可选演示用的反面教材，默认编译不需要它。
 
 **为什么是这些签名：**
 
@@ -250,7 +249,7 @@ long long TotalBalance(const Container& accts);
 
 ```bash
 cd projects/mysol/stage6
-g++ -std=c++17 -pthread p6_2_bank_test.cpp -I../../solutions -o p6_2 && ./p6_2
+g++ -std=c++17 -pthread p6_2_bank_test.cpp -I../../tests -o p6_2 && ./p6_2
 ```
 
 通过标准：`Result: 12/12 Passed`。
@@ -258,7 +257,7 @@ g++ -std=c++17 -pthread p6_2_bank_test.cpp -I../../solutions -o p6_2 && ./p6_2
 （可选）亲眼看看死锁——**它会永久挂起，必须用 `timeout` 或 Ctrl-C 结束**：
 
 ```bash
-g++ -std=c++17 -pthread -DDEMO_DEADLOCK p6_2_bank_test.cpp -I../../solutions -o p6_2_dl
+g++ -std=c++17 -pthread -DDEMO_DEADLOCK p6_2_bank_test.cpp -I../../tests -o p6_2_dl
 timeout 5 ./p6_2_dl --demo-deadlock     # 退出码 124 表示真的死锁挂起了
 ```
 
@@ -271,7 +270,7 @@ timeout 5 ./p6_2_dl --demo-deadlock     # 退出码 124 表示真的死锁挂起
 - **类型**：主线（src 的 condition_variable.cpp）＋ 关闭协议（第 1.5 节）
 - **考什么**：带谓词的 `wait`、`notify`、消费者如何安全退出（1.5）。
 - **你要写**：`projects/mysol/stage6/p6_3_blocking_queue.h`。只写头文件。
-- **复制过来的测评文件**：`solutions/stage6/p6_3_blocking_queue_test.cpp`。测评点数：13。
+- **复制过来的测评文件**：`tests/stage6/p6_3_blocking_queue_test.cpp`。测评点数：13。
 
 **测评程序要求 `namespace bq6` 里提供：**
 
@@ -315,7 +314,7 @@ public:
 
 ```bash
 cd projects/mysol/stage6
-g++ -std=c++17 -pthread p6_3_blocking_queue_test.cpp -I../../solutions -o p6_3 && ./p6_3
+g++ -std=c++17 -pthread p6_3_blocking_queue_test.cpp -I../../tests -o p6_3 && ./p6_3
 ```
 
 通过标准：`Result: 13/13 Passed`。
@@ -329,7 +328,7 @@ g++ -std=c++17 -pthread p6_3_blocking_queue_test.cpp -I../../solutions -o p6_3 &
 - **类型**：主线（src 的 rwlock.cpp）
 - **考什么**：读共享、写独占；`const` 成员里的 `mutable shared_mutex`；并发读写不破坏不变量。
 - **你要写**：`projects/mysol/stage6/p6_4_rwlock_map.h`。只写头文件。
-- **复制过来的测评文件**：`solutions/stage6/p6_4_rwlock_map_test.cpp`。测评点数：13。
+- **复制过来的测评文件**：`tests/stage6/p6_4_rwlock_map_test.cpp`。测评点数：13。
 
 **测评程序要求 `namespace rw6` 里提供：**
 
@@ -366,7 +365,7 @@ public:
 
 ```bash
 cd projects/mysol/stage6
-g++ -std=c++17 -pthread p6_4_rwlock_map_test.cpp -I../../solutions -o p6_4 && ./p6_4
+g++ -std=c++17 -pthread p6_4_rwlock_map_test.cpp -I../../tests -o p6_4 && ./p6_4
 ```
 
 通过标准：`Result: 13/13 Passed`。

@@ -7,7 +7,7 @@
 ## 目录结构
 
 ```text
-solutions/
+tests/
 ├── test_util.h               # 共用迷你测试框架（BT_TEST / BT_CHECK / BT_MAIN）
 ├── stage1/ ... stage7/
 │   ├── pX_Y_<topic>.h         # 参考实现（带详细注释）
@@ -26,8 +26,8 @@ solutions/
 给**参考实现**跑，或者给**你自己的实现**跑，方法一样：把 `_test.cpp` 放到你的 `.h` 旁边再编译。
 
 ```bash
-# 例：在 solutions/ 目录下直接验证参考实现（单文件题）
-cd projects/solutions
+# 例：在 tests/ 目录下直接验证参考实现（单文件题）
+cd projects/tests
 g++ -std=c++17 stage1/p1_1_statistics_test.cpp -I. -o p1_1 && ./p1_1
 ```
 
@@ -53,7 +53,7 @@ g++ -std=c++17 -pthread stage6/p6_1_counter_test.cpp -I. -o p6_1 && ./p6_1
 g++ -std=c++17 -I. stage2/p2_4_minimath/p2_4_minimath_test.cpp stage2/p2_4_minimath/minimath/min.cpp -o p2_4 && ./p2_4
 g++ -std=c++17 -I. stage3/p3_4_mylib/p3_4_mylib_test.cpp stage3/p3_4_mylib/mylib/geometry.cpp stage3/p3_4_mylib/mylib/stats.cpp -o p3_4 && ./p3_4
 
-# P4.5 洛谷式对拍
+# P4.5 洛谷式对拍（CLI 由你的头文件 + p4_5_log_analyzer_cli.cpp 编译而来）
 g++ -std=c++17 -I. stage4/p4_5_log_analyzer_cli.cpp -o cli
 bash stage4/tests/run_tests.sh ./cli
 ```

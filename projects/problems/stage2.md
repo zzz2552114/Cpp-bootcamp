@@ -27,27 +27,27 @@
 
 ### 1.1 测评程序怎么用（回顾）
 
-和 Stage 1 完全一样：`projects/solutions/stage2/*_test.cpp` 是测评程序，**已经自带 `main()`**。
+和 Stage 1 完全一样：`projects/tests/stage2/*_test.cpp` 是测评程序，**已经自带 `main()`**。
 你只写头文件，**不要写 `main()`**。
 
-`projects/solutions/test_util.h` 里的宏负责注册和断言（`BT_TEST` / `BT_CHECK` / `BT_CHECK_EQ` /
+`projects/tests/test_util.h` 里的宏负责注册和断言（`BT_TEST` / `BT_CHECK` / `BT_CHECK_EQ` /
 `BT_CHECK_THROWS` / `BT_MAIN`），完整说明见 `stage1.md` 第 1.1 节。这里只重复操作要点：
 
 1. 在 `projects/mysol/stage2/` 下写你的 `.h`；
 2. 把对应的测评文件复制到同一个目录（`#include "..."` 会优先找测评文件所在目录，不复制就会用到参考解答）；
-3. 在 `projects/mysol/stage2/` 下编译，用 `-I../../solutions` 找到 `test_util.h`。
+3. 在 `projects/mysol/stage2/` 下编译，用 `-I../../tests` 找到 `test_util.h`。
 
 ```bash
 # 只做一次：建目录并复制本阶段测评文件
 mkdir -p projects/mysol/stage2
-cp projects/solutions/stage2/p2_1_functions_test.cpp            projects/mysol/stage2/
-cp projects/solutions/stage2/p2_2_stack_test.cpp                projects/mysol/stage2/
-cp projects/solutions/stage2/p2_3_specialization_test.cpp       projects/mysol/stage2/
-cp projects/solutions/stage2/p2_4_minimath/p2_4_minimath_test.cpp projects/mysol/stage2/
+cp projects/tests/stage2/p2_1_functions_test.cpp            projects/mysol/stage2/
+cp projects/tests/stage2/p2_2_stack_test.cpp                projects/mysol/stage2/
+cp projects/tests/stage2/p2_3_specialization_test.cpp       projects/mysol/stage2/
+cp projects/tests/stage2/p2_4_minimath/p2_4_minimath_test.cpp projects/mysol/stage2/
 
 # 每道题的编译方式（以 P2.1 为例）
 cd projects/mysol/stage2
-g++ -std=c++17 p2_1_functions_test.cpp -I../../solutions -o p2_1 && ./p2_1
+g++ -std=c++17 p2_1_functions_test.cpp -I../../tests -o p2_1 && ./p2_1
 ```
 
 ### 1.2 函数模板：不是"一个函数"，是"造函数的图纸"
@@ -175,7 +175,7 @@ std::pair   p{1, 2.0};       // 推出 std::pair<int, double>
 
 - **考什么**：函数模板的实例化、类型推导、`const T&` 形参、非类型模板参数。
 - **你要写**：`projects/mysol/stage2/p2_1_functions.h`。只写头文件。
-- **复制过来的测评文件**：`solutions/stage2/p2_1_functions_test.cpp`。测评点数：11。
+- **复制过来的测评文件**：`tests/stage2/p2_1_functions_test.cpp`。测评点数：11。
 
 **测评程序要求你提供 4 个函数模板：**
 
@@ -206,7 +206,7 @@ template <typename T, size_t N> constexpr size_t ArrayLen(const T (&)[N]);  // �
 
 ```bash
 cd projects/mysol/stage2
-g++ -std=c++17 p2_1_functions_test.cpp -I../../solutions -o p2_1 && ./p2_1
+g++ -std=c++17 p2_1_functions_test.cpp -I../../tests -o p2_1 && ./p2_1
 ```
 
 通过标准：`Result: 11/11 Passed`。
@@ -219,7 +219,7 @@ g++ -std=c++17 p2_1_functions_test.cpp -I../../solutions -o p2_1 && ./p2_1
 
 - **考什么**：类模板、把 Stage 1 的 `const&` / `T&&` / `std::move` 用到容器接口上、const 成员函数重载。
 - **你要写**：`projects/mysol/stage2/p2_2_stack.h`。只写头文件。
-- **复制过来的测评文件**：`solutions/stage2/p2_2_stack_test.cpp`。测评点数：12。
+- **复制过来的测评文件**：`tests/stage2/p2_2_stack_test.cpp`。测评点数：12。
 
 **测评程序要求 `Stack<T>` 提供：**
 
@@ -259,7 +259,7 @@ public:
 
 ```bash
 cd projects/mysol/stage2
-g++ -std=c++17 p2_2_stack_test.cpp -I../../solutions -o p2_2 && ./p2_2
+g++ -std=c++17 p2_2_stack_test.cpp -I../../tests -o p2_2 && ./p2_2
 ```
 
 通过标准：`Result: 12/12 Passed`。
@@ -272,7 +272,7 @@ g++ -std=c++17 p2_2_stack_test.cpp -I../../solutions -o p2_2 && ./p2_2
 
 - **考什么**：函数模板全特化、类模板特化、非类型模板参数、编译期递归、`constexpr if`。
 - **你要写**：`projects/mysol/stage2/p2_3_specialization.h`。只写头文件。
-- **复制过来的测评文件**：`solutions/stage2/p2_3_specialization_test.cpp`。测评点数：15。
+- **复制过来的测评文件**：`tests/stage2/p2_3_specialization_test.cpp`。测评点数：15。
 
 **测评程序要求你提供：**
 
@@ -292,7 +292,7 @@ template <size_t N> struct FixedArray {
   int a[N];                                  // 测评会直接读写 a
   constexpr size_t Size() const;             // 返回 N
 };
-template <int T> struct Constant { static constexpr int value = T; };
+template <int T> struct Constant;   // 需要一个静态常量成员 value，它的值就是 T（该用哪个关键字见 1.4）
 
 // ④ 编译期递归
 template <size_t N> constexpr size_t Factorial();   // N * Factorial<N-1>()
@@ -326,7 +326,7 @@ template <typename T> std::string ToString(const T&);
 
 ```bash
 cd projects/mysol/stage2
-g++ -std=c++17 p2_3_specialization_test.cpp -I../../solutions -o p2_3 && ./p2_3
+g++ -std=c++17 p2_3_specialization_test.cpp -I../../tests -o p2_3 && ./p2_3
 ```
 
 通过标准：`Result: 15/15 Passed`。
@@ -343,29 +343,28 @@ g++ -std=c++17 p2_3_specialization_test.cpp -I../../solutions -o p2_3 && ./p2_3
 - **你要写**：一个多文件小项目，全部放在 `projects/mysol/stage2/` 下：
   - `minimath/min.h`（`minimath` 命名空间里的**模板声明 + 模板实现**）
   - `minimath/min.cpp`（普通函数的实现，并演示显式实例化）
-- **复制过来的测评文件**：`solutions/stage2/p2_4_minimath/p2_4_minimath_test.cpp`（放到 `projects/mysol/stage2/` 下，
+- **复制过来的测评文件**：`tests/stage2/p2_4_minimath/p2_4_minimath_test.cpp`（放到 `projects/mysol/stage2/` 下，
   它会 `#include "minimath/min.h"`，所以你的头文件必须正好在 `mysol/stage2/minimath/min.h`）。测评点数：8。
 
-**测评程序要求 `minimath` 命名空间里提供：**
+**测评程序要求 `minimath` 命名空间里提供这些名字：**
 
 ```cpp
-// min.h（声明 + 模板实现都在这里）
+// min.h（模板的声明和实现都要在这个头文件里）
 namespace minimath {
-  template <typename T> T Min(const T& a, const T& b);   // 模板：实现必须在头文件里
-  int Add(int a, int b);                                 // 普通函数：声明在 .h
+  template <typename T> T Min(const T& a, const T& b);   // 模板
+  int Add(int a, int b);                                 // 普通函数：声明放这里
   template <typename T> class Box {
   public:
-    explicit Box(T v);
+    explicit Box(T v);          // 必须能从实参推导出 T，CTAD 才成立
     const T& Get() const;
   };
 }
-
-// min.cpp
-namespace minimath {
-  int Add(int a, int b) { return a + b; }                        // 普通函数实现
-  template int Min<int>(const int&, const int&);                 // 显式实例化演示
-}
 ```
+
+下面这两件事也必须在你的代码里做出来（具体怎么写由你决定）：
+
+- 在 `min.cpp` 里给出 `Add` 的实现；
+- 在 `min.cpp` 里再写一行**显式实例化**，把 `Min<int>` 提前生成出来。
 
 **为什么这样分工：**
 
@@ -387,7 +386,7 @@ namespace minimath {
 
 ```bash
 cd projects/mysol/stage2
-g++ -std=c++17 p2_4_minimath_test.cpp minimath/min.cpp -I../../solutions -o p2_4 && ./p2_4
+g++ -std=c++17 p2_4_minimath_test.cpp minimath/min.cpp -I../../tests -o p2_4 && ./p2_4
 ```
 
 通过标准：`Result: 8/8 Passed`。

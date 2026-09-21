@@ -2,14 +2,14 @@
 # P4.5 洛谷式测试：对每个 caseNN_*.in 跑 CLI，与 caseNN_*.ans 逐字节 diff
 #
 # 用法（可在任意目录执行）:
-#   ./run_tests.sh                          # 用 solutions/build/ 下的 CLI
+#   ./run_tests.sh                          # 用当前目录下的 CLI
 #   ./run_tests.sh /path/to/your_cli        # 显式指定 CLI
 set -u
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
-# 默认 CLI 相对【脚本自身位置】解析（solutions/build/...），与调用者的 CWD 无关
-CLI="${1:-$HERE/../../build/p4_5_log_analyzer_cli}"
+# 默认 CLI 相对【调用者的当前目录】解析；推荐直接传一个显式路径，例如 ./cli
+CLI="${1:-./p4_5_log_analyzer_cli}"
 if [ ! -x "$CLI" ]; then
   echo "CLI not found or not executable: $CLI"
   echo "Build it first, then pass its path as the first argument, e.g.:"

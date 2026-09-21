@@ -27,13 +27,13 @@
 
 ### 1.1 测评程序怎么用（回顾）
 
-`projects/solutions/stage7/*_test.cpp` 是测评程序，**自带 `main()`**；你只写头文件，不要写 `main()`。
+`projects/tests/stage7/*_test.cpp` 是测评程序，**自带 `main()`**；你只写头文件，不要写 `main()`。
 断言宏说明见 `stage1.md` 第 1.1 节。流程：在 `projects/mysol/stage7/` 下写 `.h`，复制测评文件，再编译。
 
 ```bash
 mkdir -p projects/mysol/stage7
-cp projects/solutions/stage7/p7_1_my_unique_ptr_test.cpp    projects/mysol/stage7/
-cp projects/solutions/stage7/p7_2_mini_buffer_pool_test.cpp projects/mysol/stage7/
+cp projects/tests/stage7/p7_1_my_unique_ptr_test.cpp    projects/mysol/stage7/
+cp projects/tests/stage7/p7_2_mini_buffer_pool_test.cpp projects/mysol/stage7/
 ```
 
 ### 1.2 完美转发与变参模板（`MyMakeUnique` 要用）
@@ -128,22 +128,19 @@ if (it != page_table_.end()) return &frames_[it->second];   // 等待期间被�
 - **考什么**：把 Stage 1 ~ 5 的概念浓缩进一个类模板：RAII、delete 拷贝、noexcept 移动、self-move、
   `release`/`reset`/`swap`、运算符重载、`explicit operator bool`，再加变参模板 + 完美转发（1.2）。
 - **你要写**：`projects/mysol/stage7/p7_1_my_unique_ptr.h`。只写头文件。
-- **复制过来的测评文件**：`solutions/stage7/p7_1_my_unique_ptr_test.cpp`。测评点数：19。
+- **复制过来的测评文件**：`tests/stage7/p7_1_my_unique_ptr_test.cpp`。测评点数：19。
 
-**测评程序要求 `namespace myptr7` 里提供：**
+**测评程序会用到的接口（名字必须一致）：**
 
 ```cpp
 template <typename T>
 class MyUniquePtr {
 public:
-  constexpr MyUniquePtr() noexcept = default;          // 空指针
   explicit MyUniquePtr(T* ptr) noexcept;               // 接管裸指针
   ~MyUniquePtr();                                      // delete 持有的对象
 
   MyUniquePtr(MyUniquePtr&& other) noexcept;           // 接管 + 源置空
   MyUniquePtr& operator=(MyUniquePtr&& other) noexcept;// self-move 防护 + 释放旧的 + 接管
-  MyUniquePtr(const MyUniquePtr&) = delete;
-  MyUniquePtr& operator=(const MyUniquePtr&) = delete;
 
   T&   operator*() const;                              // *p
   T*   operator->() const;                             // p->
@@ -158,6 +155,12 @@ public:
 template <typename T, typename... Args>
 MyUniquePtr<T> MyMakeUnique(Args&&... args);
 ```
+
+还要自己补上：
+
+- 一个**默认构造**，构造出空指针，并且是 `constexpr`、`noexcept` 的；
+- 拷贝构造、拷贝赋值**必须禁止**（独占所有权）；
+- 移动赋值里的 self-move 防护，以及 `Reset` 对 `p == Get()` 的短路（理由见 1.3）。
 
 **为什么是这些签名：**
 
@@ -181,7 +184,7 @@ MyUniquePtr<T> MyMakeUnique(Args&&... args);
 
 ```bash
 cd projects/mysol/stage7
-g++ -std=c++17 p7_1_my_unique_ptr_test.cpp -I../../solutions -o p7_1 && ./p7_1
+g++ -std=c++17 p7_1_my_unique_ptr_test.cpp -I../../tests -o p7_1 && ./p7_1
 ```
 
 通过标准：`Result: 19/19 Passed`。
@@ -199,14 +202,14 @@ g++ -std=c++17 p7_1_my_unique_ptr_test.cpp -I../../solutions -o p7_1 && ./p7_1
 - **考什么**：把前面的 RAII / 容器 / 并发 / 条件变量全用上；学会"等待谓词必须覆盖所有导致状态变化的路径"
   和"复合读取必须在一个临界区里完成"（1.5 的两个陷阱）。
 - **你要写**：`projects/mysol/stage7/p7_2_mini_buffer_pool.h`。只写头文件。
-- **复制过来的测评文件**：`solutions/stage7/p7_2_mini_buffer_pool_test.cpp`。测评点数：16。
+- **复制过来的测评文件**：`tests/stage7/p7_2_mini_buffer_pool_test.cpp`。测评点数：16。
 
-**测评程序要求 `namespace bp7` 里提供：**
+**测评程序会用到的接口（名字必须一致）：**
 
 ```cpp
 struct Page {
-  int page_id = -1;
-  std::array<int, 8> data{};       // 随便塞点 payload，测评会读写 data[i]
+  int page_id;                     // 页号；测评会读它
+  std::array<int, 8> data;         // 随便塞点 payload，测评会读写 data[i]
 };
 
 class MiniBufferPool {
@@ -251,7 +254,7 @@ public:
 
 ```bash
 cd projects/mysol/stage7
-g++ -std=c++17 -pthread p7_2_mini_buffer_pool_test.cpp -I../../solutions -o p7_2 && ./p7_2
+g++ -std=c++17 -pthread p7_2_mini_buffer_pool_test.cpp -I../../tests -o p7_2 && ./p7_2
 ```
 
 通过标准：`Result: 16/16 Passed`。

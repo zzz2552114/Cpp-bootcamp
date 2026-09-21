@@ -1,0 +1,67 @@
+================ Test Suite p1_1_statistics_test.cpp ================
+[  1] PASS  P1_1/empty_sum_is_zero
+[  2] PASS  P1_1/empty_average_is_zero_not_nan
+[  3] PASS  P1_1/single_value
+[  4] PASS  P1_1/basic_1_to_5
+[  5] PASS  P1_1/add_value_mutates_original
+[  6] PASS  P1_1/average_is_floating_point_not_truncated
+[  7] PASS  P1_1/negative_values
+0[  8] PASS  P1_1/const_ref_does_not_copy_but_value_does
+[  9] PASS  P1_1/const_object_can_call_const_members
+[ 10] PASS  P1_1/large_data_1e6_uses_64bit_sum
+[ 11] PASS  P1_1/sum_int_would_overflow_here_so_use_suml
+[ 12] PASS  P1_1/move_does_not_count_as_copy
+---------------- Result: 12/12 Passed ----------------
+=== p1_2_overload_test ===
+================ Test Suite p1_2_overload_test.cpp ================
+[  1] PASS  P1_2/nonconst_lvalue_picks_T_ref
+[  2] PASS  P1_2/const_variable_picks_const_ref
+[  3] PASS  P1_2/literal_picks_rvalue_ref
+[  4] PASS  P1_2/temporary_object_picks_rvalue_ref
+[  5] PASS  P1_2/std_move_makes_lvalue_pick_rvalue_ref
+[  6] PASS  P1_2/const_ref_view_picks_const_ref
+[  7] PASS  P1_2/after_move_source_is_still_an_lvalue
+[  8] PASS  P1_2/const_rvalue_picks_const_ref
+---------------- Result: 8/8 Passed ----------------
+=== p1_3_buffer_test ===
+================ Test Suite p1_3_buffer_test.cpp ================
+[  1] PASS  P1_3/construct_and_size
+[  2] PASS  P1_3/elements_are_zero_initialized
+[  3] PASS  P1_3/write_then_read
+[  4] PASS  P1_3/const_access_and_at
+[  5] PASS  P1_3/at_throws_on_out_of_range
+[  6] PASS  P1_3/zero_size_buffer_is_valid
+[  7] PASS  P1_3/move_ctor_transfers_ownership
+[  8] PASS  P1_3/move_ctor_empties_source
+[  9] PASS  P1_3/moved_from_object_is_destructible
+[ 10] PASS  P1_3/move_assign_releases_old_resource
+[ 11] PASS  P1_3/move_assign_empties_source
+[ 12] PASS  P1_3/self_move_assign_is_safe
+[ 13] PASS  P1_3/chained_moves
+[ 14] PASS  P1_3/no_leak_over_many_moves
+[ 15] PASS  P1_3/large_buffer_1e7
+[ 16] PASS  P1_3/move_operations_are_noexcept
+[ 17] PASS  P1_3/buffer_is_usable_inside_std_vector
+---------------- Result: 17/17 Passed ----------------
+=== p1_4_noexcept_test ===
+================ Test Suite p1_4_noexcept_test.cpp ================
+[  1] PASS  P1_4/noexcept_move_is_detected
+[  2] PASS  P1_4/noexcept_move_never_copies_on_realloc
+[  3] PASS  P1_4/throwy_move_forces_copy_on_realloc
+[  4] PASS  P1_4/copies_only_come_from_reallocation_not_from_push
+[  5] PASS  P1_4/no_copy_available_so_move_is_used_anyway
+[  6] PASS  P1_4/move_only_type_works_in_vector
+[  7] PASS  P1_4/large_realloc_still_zero_copies_with_noexcept
+[  8] PASS  P1_4/values_survive_reallocation
+[  9] PASS  P1_4/why_it_matters_vector_of_moveonly_uses_move
+---------------- Result: 9/9 Passed ----------------
+=== p1_5_bench_test ===
+================ Test Suite p1_5_bench_test.cpp ================
+[  1] PASS  P1_5/move_does_zero_element_copies_but_copy_does_n
+[  2] PASS  P1_5/moved_content_is_intact
+[  3] PASS  P1_5/move_is_cheap_for_strings_too
+        [Reference] copy=26044us  move=0us  ratio=0x
+[  4] PASS  P1_5/timing_copy_vs_move_informational
+[  5] PASS  P1_5/stress_many_sizes_content_equal
+[  6] PASS  P1_5/moved_from_vector_is_reusable
+---------------- Result: 6/6 Passed ----------------

@@ -28,15 +28,15 @@
 
 ### 1.1 测评程序怎么用（回顾）
 
-`projects/solutions/stage5/*_test.cpp` 是测评程序，**自带 `main()`**；你只写头文件，不要写 `main()`。
+`projects/tests/stage5/*_test.cpp` 是测评程序，**自带 `main()`**；你只写头文件，不要写 `main()`。
 断言宏说明见 `stage1.md` 第 1.1 节。流程：在 `projects/mysol/stage5/` 下写 `.h`，复制测评文件，再编译。
 
 ```bash
 mkdir -p projects/mysol/stage5
-cp projects/solutions/stage5/p5_1_binary_tree_test.cpp  projects/mysol/stage5/
-cp projects/solutions/stage5/p5_2_ownership_test.cpp    projects/mysol/stage5/
-cp projects/solutions/stage5/p5_3_registry_test.cpp     projects/mysol/stage5/
-cp projects/solutions/stage5/p5_4_weak_ptr_test.cpp     projects/mysol/stage5/
+cp projects/tests/stage5/p5_1_binary_tree_test.cpp  projects/mysol/stage5/
+cp projects/tests/stage5/p5_2_ownership_test.cpp    projects/mysol/stage5/
+cp projects/tests/stage5/p5_3_registry_test.cpp     projects/mysol/stage5/
+cp projects/tests/stage5/p5_4_weak_ptr_test.cpp     projects/mysol/stage5/
 ```
 
 ### 1.2 `unique_ptr`：独占所有权
@@ -124,33 +124,27 @@ P5 的测评用 `inline static int live`（见 `stage1.md` 1.5）数"当前存�
 
 - **考什么**：用 `unique_ptr` 表达"谁拥有谁"；树是最自然的 ownership 链。
 - **你要写**：`projects/mysol/stage5/p5_1_binary_tree.h`。只写头文件。
-- **复制过来的测评文件**：`solutions/stage5/p5_1_binary_tree_test.cpp`。测评点数：13。
+- **复制过来的测评文件**：`tests/stage5/p5_1_binary_tree_test.cpp`。测评点数：13。
 
-**测评程序要求 `namespace tree5` 里提供：**
+**测评程序会用到的接口（名字必须一致）：**
 
 ```cpp
-struct Node {
-  int value;
-  std::unique_ptr<Node> left;    // 节点拥有自己的左右孩子
-  std::unique_ptr<Node> right;
-  explicit Node(int v);
-};
-
 class BinaryTree {
 public:
-  BinaryTree() = default;
-  BinaryTree(BinaryTree&&) noexcept = default;             // 可移动
-  BinaryTree& operator=(BinaryTree&&) noexcept = default;
-
   void Insert(int x);              // 二叉搜索树；重复值放右子树
   bool Contains(int x) const;
   int  Height() const;             // 空树 = 0
   int  Size() const;
   std::vector<int> InOrder() const;// 中序遍历（有序，含重复值）
   bool Empty() const;
-  const Node* Root() const;
 };
 ```
+
+节点类型由你自己设计，但**孩子的所有权必须用 `std::unique_ptr` 表达**（这就是“ownership tree”的含义）：
+
+- 这样析构会随头节点自动级联释放整棵树，**不需要手写 `delete`**；
+- 也因为成员是 `unique_ptr`，拷贝会自动被禁止、移动自动可用。测评用 `static_assert` 检查
+  `BinaryTree` 不可拷贝、可移动，所以**不要**手写任何特殊成员函数。
 
 **为什么是这些签名：**
 
@@ -176,7 +170,7 @@ public:
 
 ```bash
 cd projects/mysol/stage5
-g++ -std=c++17 p5_1_binary_tree_test.cpp -I../../solutions -o p5_1 && ./p5_1
+g++ -std=c++17 p5_1_binary_tree_test.cpp -I../../tests -o p5_1 && ./p5_1
 ```
 
 通过标准：`Result: 13/13 Passed`。
@@ -190,16 +184,15 @@ g++ -std=c++17 p5_1_binary_tree_test.cpp -I../../solutions -o p5_1 && ./p5_1
 - **考什么**：区分"借用对象"、"非拥有观察"、"移交所有权"三种传参方式；
   `release` / `reset` 的语义与 `reset(get())` 陷阱（1.3）。
 - **你要写**：`projects/mysol/stage5/p5_2_ownership.h`。只写头文件。
-- **复制过来的测评文件**：`solutions/stage5/p5_2_ownership_test.cpp`。测评点数：15。
+- **复制过来的测评文件**：`tests/stage5/p5_2_ownership_test.cpp`。测评点数：15。
 
-**测评程序要求 `namespace own5` 里提供：**
+**测评程序会用到的接口（名字必须一致）：**
 
 ```cpp
 struct Widget {
-  inline static int live = 0;      // 当前存活对象数
-  int v;
-  explicit Widget(int x);          // live++
-  ~Widget();                       // live--
+  int v;                           // 要有一个 int 成员
+  explicit Widget(int x);
+  ~Widget();
 };
 
 void Borrow(std::unique_ptr<Widget>& up);   // 只修改对象，不动所有权：up->v += 1
@@ -207,9 +200,11 @@ int  Observe(const Widget* raw);            // 非拥有裸指针：raw ? raw->v
 std::unique_ptr<Widget> Take(std::unique_ptr<Widget> up);  // 按值收下所有权，再把它移出去返回
 std::unique_ptr<Widget> Make(int v);        // 返回一个新对象的所有权
 
-void ResetKeepingSamePointer(std::unique_ptr<Widget>& up); // 安全地"重置到同一个指针"
+void ResetKeepingSamePointer(std::unique_ptr<Widget>& up); // 安全地“重置到同一个指针”
 int  TakeAndDestroy(std::unique_ptr<Widget> up);            // 按值收下，返回 v（函数结束时销毁）
 ```
+
+`Widget` 还需要一个**公开的静态计数器 `live`**（构造 +1、析构 -1，用来验证没有泄漏，声明方式见 1.6）。
 
 **为什么是这些签名：**
 
@@ -238,7 +233,7 @@ int  TakeAndDestroy(std::unique_ptr<Widget> up);            // 按值收下，�
 
 ```bash
 cd projects/mysol/stage5
-g++ -std=c++17 p5_2_ownership_test.cpp -I../../solutions -o p5_2 && ./p5_2
+g++ -std=c++17 p5_2_ownership_test.cpp -I../../tests -o p5_2 && ./p5_2
 ```
 
 （可选）亲眼看 `reset(get())` 的后果——这个参数会真的触发 double free：
@@ -257,17 +252,16 @@ g++ -std=c++17 p5_2_ownership_test.cpp -I../../solutions -o p5_2 && ./p5_2
 
 - **考什么**：`shared_ptr` 的引用计数如何随拷贝/移动/销毁变化；"对象活着"与"在注册表里"是两回事。
 - **你要写**：`projects/mysol/stage5/p5_3_registry.h`。只写头文件。
-- **复制过来的测评文件**：`solutions/stage5/p5_3_registry_test.cpp`。测评点数：12。
+- **复制过来的测评文件**：`tests/stage5/p5_3_registry_test.cpp`。测评点数：12。
 
-**测评程序要求 `namespace reg5` 里提供：**
+**测评程序会用到的接口（名字必须一致）：**
 
 ```cpp
 struct User {
-  inline static int live = 0;
-  std::string name_;
-  explicit User(std::string n);            // live++
-  ~User();                                 // live--
-  const std::string& Name() const;
+  std::string name_;                       // 名字成员名必须是 name_
+  explicit User(std::string n);
+  ~User();
+  const std::string& Name() const;         // 返回 name_
 };
 
 class UserRegistry {
@@ -281,6 +275,8 @@ public:
   bool Empty() const;
 };
 ```
+
+`User` 还需要一个**公开的静态计数器 `live`**（构造 +1、析构 -1，声明方式见 1.6）。
 
 **为什么是这些签名：**
 
@@ -306,7 +302,7 @@ public:
 
 ```bash
 cd projects/mysol/stage5
-g++ -std=c++17 p5_3_registry_test.cpp -I../../solutions -o p5_3 && ./p5_3
+g++ -std=c++17 p5_3_registry_test.cpp -I../../tests -o p5_3 && ./p5_3
 ```
 
 通过标准：`Result: 12/12 Passed`。
@@ -321,14 +317,14 @@ g++ -std=c++17 p5_3_registry_test.cpp -I../../solutions -o p5_3 && ./p5_3
 
 - **考什么**：1.5。`shared_ptr` 成环导致泄漏；用 `weak_ptr` 剪断一条边；`lock()` 的安全访问。
 - **你要写**：`projects/mysol/stage5/p5_4_weak_ptr.h`。只写头文件。
-- **复制过来的测评文件**：`solutions/stage5/p5_4_weak_ptr_test.cpp`。测评点数：10。
+- **复制过来的测评文件**：`tests/stage5/p5_4_weak_ptr_test.cpp`。测评点数：10。
 
-**测评程序要求 `namespace weak5` 里提供：**
+**测评程序会用到的接口（名字必须一致）：**
+
+（`namespace weak5` 里还需要两个东西做观测：`g_live`（当前存活对象数）和 `ResetLive()`，
+声明方式与用法见 1.6。）
 
 ```cpp
-inline int g_live = 0;                 // 当前存活对象数（几个类型共用）
-inline void ResetLive();               // g_live = 0
-
 struct BadNode {                       // 全用 shared_ptr → 互相持有，成环
   std::string name;
   std::shared_ptr<BadNode> next;
@@ -378,7 +374,7 @@ struct Child {
 
 ```bash
 cd projects/mysol/stage5
-g++ -std=c++17 p5_4_weak_ptr_test.cpp -I../../solutions -o p5_4 && ./p5_4
+g++ -std=c++17 p5_4_weak_ptr_test.cpp -I../../tests -o p5_4 && ./p5_4
 ```
 
 通过标准：`Result: 10/10 Passed`。

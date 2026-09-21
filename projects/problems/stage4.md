@@ -30,17 +30,17 @@
 
 ### 1.1 测评程序怎么用（回顾）
 
-`projects/solutions/stage4/*_test.cpp` 是测评程序，**自带 `main()`**；你只写头文件，不要写 `main()`。
+`projects/tests/stage4/*_test.cpp` 是测评程序，**自带 `main()`**；你只写头文件，不要写 `main()`。
 断言宏说明见 `stage1.md` 第 1.1 节。流程：在 `projects/mysol/stage4/` 下写 `.h`，复制测评文件到同目录，再编译。
 
 ```bash
 mkdir -p projects/mysol/stage4
-cp projects/solutions/stage4/p4_1_vector_invalidation_test.cpp   projects/mysol/stage4/
-cp projects/solutions/stage4/p4_2_set_comparator_test.cpp        projects/mysol/stage4/
-cp projects/solutions/stage4/p4_3_unordered_custom_key_test.cpp  projects/mysol/stage4/
-cp projects/solutions/stage4/p4_4_auto_decltype_test.cpp         projects/mysol/stage4/
-cp projects/solutions/stage4/p4_5_log_analyzer_test.cpp          projects/mysol/stage4/
-cp projects/solutions/stage4/p4_5_log_analyzer_cli.cpp           projects/mysol/stage4/
+cp projects/tests/stage4/p4_1_vector_invalidation_test.cpp   projects/mysol/stage4/
+cp projects/tests/stage4/p4_2_set_comparator_test.cpp        projects/mysol/stage4/
+cp projects/tests/stage4/p4_3_unordered_custom_key_test.cpp  projects/mysol/stage4/
+cp projects/tests/stage4/p4_4_auto_decltype_test.cpp         projects/mysol/stage4/
+cp projects/tests/stage4/p4_5_log_analyzer_test.cpp          projects/mysol/stage4/
+cp projects/tests/stage4/p4_5_log_analyzer_cli.cpp           projects/mysol/stage4/
 ```
 
 ### 1.2 `vector`：`size` 与 `capacity` 是两件事
@@ -185,7 +185,7 @@ v.erase(std::remove_if(v.begin(), v.end(), pred), v.end());
 - **考什么**：1.2 与 1.3。题目本身不要求你实现容器，而是要求你写一组**测量函数**，
   用它们把"地址什么时候变、capacity 什么时候涨"变成可断言的事实。
 - **你要写**：`projects/mysol/stage4/p4_1_vector_invalidation.h`。只写头文件。
-- **复制过来的测评文件**：`solutions/stage4/p4_1_vector_invalidation_test.cpp`。测评点数：17。
+- **复制过来的测评文件**：`tests/stage4/p4_1_vector_invalidation_test.cpp`。测评点数：17。
 
 **测评程序要求 `namespace v4` 里提供：**
 
@@ -193,7 +193,6 @@ v.erase(std::remove_if(v.begin(), v.end(), pred), v.end());
 struct CapSize {
   size_t cap;      // capacity
   size_t size;     // size
-  bool operator==(const CapSize& o) const;
 };
 
 CapSize PushNTimes(size_t n);                  // 不 reserve，push_back n 次，返回最终 {capacity, size}
@@ -226,7 +225,7 @@ bool AddressChangesPastCapacity(size_t exceed);
 
 ```bash
 cd projects/mysol/stage4
-g++ -std=c++17 p4_1_vector_invalidation_test.cpp -I../../solutions -o p4_1 && ./p4_1
+g++ -std=c++17 p4_1_vector_invalidation_test.cpp -I../../tests -o p4_1 && ./p4_1
 ```
 
 通过标准：`Result: 17/17 Passed`。
@@ -241,7 +240,7 @@ g++ -std=c++17 p4_1_vector_invalidation_test.cpp -I../../solutions -o p4_1 && ./
 - **考什么**：`set` 的有序去重与三种 `erase` 形式、降序集合、`pair` 的自然序、
   自定义比较器与严格弱序（1.4）、`map` 词频统计与有序遍历。
 - **你要写**：`projects/mysol/stage4/p4_2_set_comparator.h`。只写头文件。
-- **复制过来的测评文件**：`solutions/stage4/p4_2_set_comparator_test.cpp`。测评点数：16。
+- **复制过来的测评文件**：`tests/stage4/p4_2_set_comparator_test.cpp`。测评点数：16。
 
 **测评程序要求 `namespace s4` 里提供：**
 
@@ -279,7 +278,7 @@ std::string KeysJoined(const std::map<std::string,int>& m);    // 按 key 顺序
 
 ```bash
 cd projects/mysol/stage4
-g++ -std=c++17 p4_2_set_comparator_test.cpp -I../../solutions -o p4_2 && ./p4_2
+g++ -std=c++17 p4_2_set_comparator_test.cpp -I../../tests -o p4_2 && ./p4_2
 ```
 
 通过标准：`Result: 16/16 Passed`。
@@ -294,7 +293,7 @@ g++ -std=c++17 p4_2_set_comparator_test.cpp -I../../solutions -o p4_2 && ./p4_2
 - **考什么**：1.5。`operator[]` 会默认插入；`find`/`at`/`try_emplace`/`insert_or_assign` 的区别；
   给 `pair` 当 key 写哈希函数；给自定义结构当 key 特化 `std::hash`。
 - **你要写**：`projects/mysol/stage4/p4_3_unordered_custom_key.h`。只写头文件。
-- **复制过来的测评文件**：`solutions/stage4/p4_3_unordered_custom_key_test.cpp`。测评点数：16。
+- **复制过来的测评文件**：`tests/stage4/p4_3_unordered_custom_key_test.cpp`。测评点数：16。
 
 **测评程序要求你提供：**
 
@@ -342,7 +341,7 @@ namespace std {
 
 ```bash
 cd projects/mysol/stage4
-g++ -std=c++17 p4_3_unordered_custom_key_test.cpp -I../../solutions -o p4_3 && ./p4_3
+g++ -std=c++17 p4_3_unordered_custom_key_test.cpp -I../../tests -o p4_3 && ./p4_3
 ```
 
 通过标准：`Result: 16/16 Passed`。
@@ -357,19 +356,16 @@ g++ -std=c++17 p4_3_unordered_custom_key_test.cpp -I../../solutions -o p4_3 && .
 - **考什么**：1.6。`auto` 剥引用与顶层 const、`const auto&` 借用、结构化绑定、`decltype` 与
   `decltype(auto)` 保留引用。
 - **你要写**：`projects/mysol/stage4/p4_4_auto_decltype.h`。只写头文件。
-- **复制过来的测评文件**：`solutions/stage4/p4_4_auto_decltype_test.cpp`。测评点数：17。
+- **复制过来的测评文件**：`tests/stage4/p4_4_auto_decltype_test.cpp`。测评点数：17。
 
-**测评程序要求 `namespace a4` 里提供：**
+**测评程序会用到的接口（名字必须一致）：**
 
 ```cpp
 struct Big {                       // 带拷贝计数的类型，用来证明 auto 会静默拷贝
-  inline static int copies = 0;
-  int v = 0;
-  Big() = default;
+  int v;                           // 要有一个 int 成员
   explicit Big(int x);
-  Big(const Big& o);               // ++copies
-  Big& operator=(const Big& o);    // ++copies
-  static void Reset();
+  Big();                           // 默认构造（测试会默认构造/拷它）
+  static void Reset();             // 把 copies 计数器清零
 };
 
 template <typename C> decltype(auto) AtRef(C& c, size_t i);  // 返回 c[i] 原样（vector 上是 int&）
@@ -378,6 +374,9 @@ template <typename C> auto AtVal(C& c, size_t i);            // 剥掉引用，�
 std::string ScaleValues(std::map<std::string,int>& m, int factor);  // 用 auto& [k,v] 原地放大 value
 int SumPairs(const std::vector<std::pair<int,int>>& v);      // 用结构化绑定求和
 ```
+
+`Big` 还需要一个**公开的静态计数器 `copies`**（每拷贝/拷贝赋值 +1，声明方式见 1.5），
+以及相应的拷贝构造和拷贝赋值——这两处都要让 `copies` 自增。
 
 **为什么这样设计**：
 
@@ -400,7 +399,7 @@ vector<pair> 结构化绑定求和；`decltype(vec[0])` 是 `int&`；`decltype(a
 
 ```bash
 cd projects/mysol/stage4
-g++ -std=c++17 p4_4_auto_decltype_test.cpp -I../../solutions -o p4_4 && ./p4_4
+g++ -std=c++17 p4_4_auto_decltype_test.cpp -I../../tests -o p4_4 && ./p4_4
 ```
 
 通过标准：`Result: 17/17 Passed`。
@@ -415,8 +414,8 @@ g++ -std=c++17 p4_4_auto_decltype_test.cpp -I../../solutions -o p4_4 && ./p4_4
 - **考什么**：把 `vector` / `set` / `unordered_map` / lambda 捕获 / erase-remove 串成一个完整小工具。
 - **你要写**：`projects/mysol/stage4/p4_5_log_analyzer.h`。只写头文件，不要写 `main()`。
 - **复制过来的测评文件**：
-  - `solutions/stage4/p4_5_log_analyzer_test.cpp`（分级测试点，17 个）
-  - `solutions/stage4/p4_5_log_analyzer_cli.cpp`（**这是测评配套的命令行外壳，不用你写**：
+  - `tests/stage4/p4_5_log_analyzer_test.cpp`（分级测试点，17 个）
+  - `tests/stage4/p4_5_log_analyzer_cli.cpp`（**这是测评配套的命令行外壳，不用你写**：
     它读 stdin、调用你头文件里的函数、把结果打到 stdout。你只要把测评文件复制过来、
     和你自己的头文件一起编译即可）
 
@@ -457,7 +456,7 @@ std::string Join(const std::vector<std::string>& v);               // 空格连�
 
 ```bash
 cd projects/mysol/stage4
-g++ -std=c++17 p4_5_log_analyzer_test.cpp -I../../solutions -o p4_5 && ./p4_5
+g++ -std=c++17 p4_5_log_analyzer_test.cpp -I../../tests -o p4_5 && ./p4_5
 ```
 
 通过标准：`Result: 17/17 Passed`。
@@ -467,7 +466,7 @@ g++ -std=c++17 p4_5_log_analyzer_test.cpp -I../../solutions -o p4_5 && ./p4_5
 ```bash
 cd projects/mysol/stage4
 g++ -std=c++17 p4_5_log_analyzer_cli.cpp -o cli
-bash ../../solutions/stage4/tests/run_tests.sh ./cli
+bash ../../tests/stage4/tests/run_tests.sh ./cli
 ```
 
 通过标准：最后一行 `---------------- AC 14 / 14 ----------------`。

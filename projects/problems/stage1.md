@@ -29,7 +29,7 @@
 
 ### 1.1 测评程序是什么？我到底该写什么？
 
-`projects/solutions/stageN/` 下的 `*_test.cpp` 就是**测评程序**，它已经写好了 `main()`。
+`projects/tests/stageN/` 下的 `*_test.cpp` 就是**测评程序**，它已经写好了 `main()`。
 它做两件事：
 
 1. 调用你的代码；
@@ -38,7 +38,7 @@
 你**只需要写 `.h` 头文件**（里面放类型和函数），**绝对不要自己写 `main()`**——
 否则一个程序里会出现两个 `main`，链接直接失败。
 
-测评程序里常见的宏（定义在 `projects/solutions/test_util.h`，你不用写、也不用改）：
+测评程序里常见的宏（定义在 `projects/tests/test_util.h`，你不用写、也不用改）：
 
 | 宏 | 作用 |
 | :-- | :-- |
@@ -63,26 +63,26 @@ BT_MAIN("Test Suite p1_1_statistics_test.cpp")   // 这里才有 main
 
 **头文件必须和测评文件放在同一个目录**。原因是 `#include "p1_1_statistics.h"` 这种双引号包含，
 编译器会**优先在测评文件自己所在的目录**里找头文件；如果你把自己写的头文件放在别处、
-而参考解答还躺在 `solutions/stage1/`，编译器就会悄悄用参考解答，你的代码根本没被编译。
+而参考解答还躺在 `tests/stage1/`，编译器就会悄悄用参考解答，你的代码根本没被编译。
 
 因此本阶段统一这样做（每道题都要先把你自己的实现文件建好，测评文件复制过来）：
 
 ```bash
 # ① 建工作目录，并把本阶段 5 个测评文件复制进来（只需做一次）
 mkdir -p projects/mysol/stage1
-cp projects/solutions/stage1/p1_1_statistics_test.cpp \
-   projects/solutions/stage1/p1_2_overload_test.cpp \
-   projects/solutions/stage1/p1_3_buffer_test.cpp \
-   projects/solutions/stage1/p1_4_noexcept_test.cpp \
-   projects/solutions/stage1/p1_5_bench_test.cpp \
+cp projects/tests/stage1/p1_1_statistics_test.cpp \
+   projects/tests/stage1/p1_2_overload_test.cpp \
+   projects/tests/stage1/p1_3_buffer_test.cpp \
+   projects/tests/stage1/p1_4_noexcept_test.cpp \
+   projects/tests/stage1/p1_5_bench_test.cpp \
    projects/mysol/stage1/
 
 # ② 在 projects/mysol/stage1/ 下写好 p1_1_statistics.h 之后：
 cd projects/mysol/stage1
-g++ -std=c++17 p1_1_statistics_test.cpp -I../../solutions -o p1_1 && ./p1_1
+g++ -std=c++17 p1_1_statistics_test.cpp -I../../tests -o p1_1 && ./p1_1
 ```
 
-`-I../../solutions` 的作用：让测评文件能找到 `test_util.h`。
+`-I../../tests` 的作用：让测评文件能找到 `test_util.h`。
 `-std=c++17` 必不可少（本仓库统一用 C++17）。除此以外不需要别的编译参数。
 
 ### 1.2 引用、`const T&` 与 const 成员函数
@@ -211,42 +211,38 @@ P1.1 要求 `Statistics` 里有一个公开的 `inline static int copies`，P1.4
 
 - **考什么**：引用是别名、`const&` 形参不拷贝、const 成员函数、`const&` 能绑右值。
 - **你要写**：`projects/mysol/stage1/p1_1_statistics.h`。只写头文件，不要写 `main()`。
-- **把哪个测评文件复制过来**：`solutions/stage1/p1_1_statistics_test.cpp`。
+- **把哪个测评文件复制过来**：`tests/stage1/p1_1_statistics_test.cpp`。
 - **测评点数**：12。
 
-**测评程序会用到你类型的这些东西，所以规格必须满足：**
+**测评程序会用到的接口（名字必须一致，否则编译不过）：**
 
 ```cpp
 struct Statistics {
-  inline static int copies = 0;          // 观测拷贝次数，见 1.5
-  std::vector<int> data;                 // 测评会直接访问 s.data（reserve/assign 造大数据）
-
-  Statistics() = default;
-  Statistics(const Statistics&);                    // 拷贝：data 拷过来，copies +1
-  Statistics& operator=(const Statistics&);         // 拷贝赋值：同上
-  Statistics(Statistics&&) noexcept = default;      // 移动：不增加 copies
-  Statistics& operator=(Statistics&&) noexcept = default;
-
-  void AddValue(int x);                  // 改自身 → 非 const 成员函数
-  int Sum() const;                       // 只读；返回 int 和
-  long long SumL() const;                // 只读；返回 64 位和
-  double Average() const;                // 只读；空数据返回 0.0
-  size_t Size() const;                   // 只读
-  bool Empty() const;                    // 只读
+  std::vector<int> data;      // 公开：测评会用 s.data.reserve(...) / assign(...) 造大数据
+  Statistics();               // 默认构造
+  void AddValue(int x);       // 非 const：向 data 追加
+  int Sum() const;            // 只读：int 求和
+  long long SumL() const;     // 只读：64 位求和
+  double Average() const;     // 只读：空数据返回 0.0
+  size_t Size() const;        // 只读
+  bool Empty() const;         // 只读
 };
-
-inline int ReportSum(const Statistics& s);   // 通过 const& 借用
+int ReportSum(const Statistics& s);   // 自由函数：内部 return s.Sum()
 ```
 
-**为什么是这些签名（逐条解释）：**
+上面只是"一眼要写什么"的公开接口。下面这些你**必须自己想清楚、自己补上**：
+
+- 一个公开的静态计数器 `copies`，每发生一次拷贝 +1。它该怎么声明、为什么要 `inline static`，见 1.5。
+- **拷贝构造和拷贝赋值必须自己写**：只有手写才能在拷贝时让 `copies + 1`。
+- **移动构造和移动赋值也必须自己补上，并标 `noexcept`**，且不要增加 `copies`。
+  ⚠️ 一旦你手写了拷贝构造，编译器就**不再自动生成移动构造**；不补的话
+  `Statistics b(std::move(a))` 会退化成拷贝，`copies` 就不为 0。理由见 1.4、1.8。
+
+**这些接口为什么是这个样子：**
 
 - `data` 必须**公开且叫 `data`**：测评用 `s.data.reserve(1000000)` 和 `s.data.assign(...)` 直接构造大数据集，
   这是测评的硬性要求，不是风格建议。
-- `copies` 必须是 `inline static`：理由见 1.5。测评通过 `Statistics::copies` 读取它。
-- **拷贝构造/拷贝赋值必须手写**：只有手写，才能在拷贝时 `++copies`。也正因为你手写了拷贝构造，
-  编译器不会再自动生成移动构造，所以**必须显式写出移动构造/移动赋值**（这里 `= default` 即可），
-  否则 `Statistics b(std::move(a))` 会退化成拷贝、`copies` 就会不为 0。
-- 移动构造/赋值标 `noexcept`：理由见 1.8；测评里有 `static_assert` 会检查。
+- `copies` 必须能被 `Statistics::copies` 读到（声明方式见 1.5），测评靠它判断"到底有没有发生拷贝"。
 - `Sum()` 返回 `int`、`SumL()` 返回 `long long`：测评用 `static_assert(std::is_same_v<decltype(s.Sum()), int>)`
   检查返回类型，并用 1..1000000 的数据验证 `SumL()` 不溢出。
 - `Average()` 必须先把和转成 `double` 再除，并且**用 `SumL()` 而不是 `Sum()`**：
@@ -268,7 +264,7 @@ inline int ReportSum(const Statistics& s);   // 通过 const& 借用
 
 ```bash
 cd projects/mysol/stage1
-g++ -std=c++17 p1_1_statistics_test.cpp -I../../solutions -o p1_1 && ./p1_1
+g++ -std=c++17 p1_1_statistics_test.cpp -I../../tests -o p1_1 && ./p1_1
 ```
 
 通过标准：`---------------- Result: 12/12 Passed ----------------`。
@@ -282,7 +278,7 @@ g++ -std=c++17 p1_1_statistics_test.cpp -I../../solutions -o p1_1 && ./p1_1
 - **考什么**：同一组实参，值类别（左值 / const 左值 / 右值）不同，会选中不同的重载。
   这是理解 `std::move` 为什么有用的关键。
 - **你要写**：`projects/mysol/stage1/p1_2_overload.h`。只写头文件。
-- **把哪个测评文件复制过来**：`solutions/stage1/p1_2_overload_test.cpp`。
+- **把哪个测评文件复制过来**：`tests/stage1/p1_2_overload_test.cpp`。
 - **测评点数**：8。
 
 **测评程序要求你提供这 4 个函数：**
@@ -309,7 +305,7 @@ inline std::string CallWithConst(int& x);
 
 ```bash
 cd projects/mysol/stage1
-g++ -std=c++17 p1_2_overload_test.cpp -I../../solutions -o p1_2 && ./p1_2
+g++ -std=c++17 p1_2_overload_test.cpp -I../../tests -o p1_2 && ./p1_2
 ```
 
 通过标准：`Result: 8/8 Passed`。
@@ -322,44 +318,38 @@ g++ -std=c++17 p1_2_overload_test.cpp -I../../solutions -o p1_2 && ./p1_2
 
 - **考什么**：移动构造、移动赋值、self-move、moved-from 的析构安全、只可移动类型的用途。
 - **你要写**：`projects/mysol/stage1/p1_3_buffer.h`。只写头文件。
-- **把哪个测评文件复制过来**：`solutions/stage1/p1_3_buffer_test.cpp`。
+- **把哪个测评文件复制过来**：`tests/stage1/p1_3_buffer_test.cpp`。
 - **测评点数**：17。
 
-**测评程序要求你的类提供这些接口：**
+**测评程序会用到的接口（名字必须一致）：**
 
 ```cpp
 class Buffer {
 public:
-  inline static int allocs = 0;   // 每次申请内存 +1（观测用，见 1.6）
-  inline static int frees  = 0;   // 每次释放内存 +1
-
-  explicit Buffer(size_t n);      // 申请长度为 n 的动态数组，元素初始化为 0
-  ~Buffer();                      // 释放
-
-  Buffer(const Buffer&) = delete;
-  Buffer& operator=(const Buffer&) = delete;
-
-  Buffer(Buffer&& other) noexcept;
-  Buffer& operator=(Buffer&& other) noexcept;
-
+  explicit Buffer(size_t n);              // 申请 n 个 int，值初始化为 0
+  ~Buffer();                              // 释放
   size_t Size() const noexcept;
-  bool   Owns() const noexcept;             // 当前是否持有内存
-  int&       operator[](size_t i);          // 不做越界检查
+  bool   Owns() const noexcept;           // 当前是否持有内存
+  int&       operator[](size_t i);        // 不做越界检查
   const int& operator[](size_t i) const;
-  int&       At(size_t i);                  // 越界抛 std::out_of_range
+  int&       At(size_t i);                // 越界抛 std::out_of_range
   const int& At(size_t i) const;
 };
 ```
 
-**为什么是这些签名：**
+下面这些同样要你自己补，注意每一条的理由：
+
+- **拷贝构造、拷贝赋值必须禁止**：一个资源只能有一个拥有者，允许拷贝就会有两个对象持有同一块内存，
+  析构时二次释放即 `double free`（`wrapper_class.cpp` 里 `IntPtrManager` 就是这么做的）。
+- **移动构造、移动赋值必须提供并标 `noexcept`**：见 1.8；测评有 `static_assert` 检查，`vector<Buffer>` 的测试也依赖它。
+- 移动赋值里必须有 **self-move 防护**：`b = std::move(b)` 时若不先判断"是不是自己"，就会先释放自己的内存，
+  再把自己那个已经被释放的指针赋给自己，析构时二次释放。测评有 `self_move_assign_is_safe` 专门抓这个。
+- 一个公开的静态计数器 `allocs` / `frees`（每次申请/释放 +1，声明方式见 1.6）。
+
+**这些接口为什么是这个样子：**
 
 - `explicit Buffer(size_t n)`：`explicit` 防止 `Buffer b = 10;` 这种把整数悄悄当长度用的隐式转换。
   元素要**初始化为 0**（测评会逐个检查），所以申请时要记得做值初始化。
-- 拷贝用 `= delete`：一个资源只能有一个拥有者；允许拷贝就会有两个对象持有同一块内存，析构两次即 `double free`。
-  这也是 `wrapper_class.cpp` 里 `IntPtrManager` 的做法。
-- 移动构造/赋值必须 `noexcept`：见 1.8；测评有 `static_assert` 检查，而且 `vector<Buffer>` 的测试依赖它。
-- 移动赋值里必须有 **self-move 防护**（`this == &other` 时直接返回）：否则 `b = std::move(b)` 会先释放自己的内存，
-  再把自己那个已经被释放的指针赋给自己，析构时二次释放。测评专门有一个 `self_move_assign_is_safe` 测试点。
 - `Owns()`：区分"长度为 0 但已申请"和"资源已被移动走"。`Buffer b(0)` 时 `Owns()` 应为真。
 - `operator[]` 不检查、`At` 检查并抛 `std::out_of_range`：这是 STL 的惯例（`vector[]` vs `vector::at`），
   测评两个版本（const 与非 const）都会用。
@@ -375,13 +365,13 @@ self-move 安全；链式移动；大量移动后 `allocs == frees`（无泄漏�
 
 ```bash
 cd projects/mysol/stage1
-g++ -std=c++17 p1_3_buffer_test.cpp -I../../solutions -o p1_3 && ./p1_3
+g++ -std=c++17 p1_3_buffer_test.cpp -I../../tests -o p1_3 && ./p1_3
 ```
 
 （可选）想让它替你检查越界和泄漏，可以用 AddressSanitizer 再跑一遍：
 
 ```bash
-g++ -std=c++17 -fsanitize=address,undefined -g p1_3_buffer_test.cpp -I../../solutions -o p1_3_asan && ./p1_3_asan
+g++ -std=c++17 -fsanitize=address,undefined -g p1_3_buffer_test.cpp -I../../tests -o p1_3_asan && ./p1_3_asan
 ```
 
 通过标准：`Result: 17/17 Passed`。
@@ -396,39 +386,19 @@ g++ -std=c++17 -fsanitize=address,undefined -g p1_3_buffer_test.cpp -I../../solu
 
 - **考什么**：`vector` 扩容时的 `move_if_noexcept` 规则（1.8），以及 `noexcept` 如何影响类型在容器里的行为。
 - **你要写**：`projects/mysol/stage1/p1_4_noexcept.h`。只写头文件。
-- **把哪个测评文件复制过来**：`solutions/stage1/p1_4_noexcept_test.cpp`。
+- **把哪个测评文件复制过来**：`tests/stage1/p1_4_noexcept_test.cpp`。
 - **测评点数**：9。
 
-**测评程序要求你提供 3 个类型和 1 个函数模板：**
+**测评程序要求你提供 3 个类型和 1 个函数模板**（下面只描述每个类型必须**具备什么**，具体怎么写由你决定）：
 
-```cpp
-struct Counted {                       // 移动构造【带】noexcept
-  inline static int copies = 0;
-  inline static int moves  = 0;
-  int v;
-  explicit Counted(int x);
-  Counted(const Counted& o);           // ++copies
-  Counted(Counted&& o) noexcept;       // ++moves
-  static void Reset();                 // 两个计数器都清零
-};
-
-struct CountedThrowy {                 // 移动构造【不写】noexcept，但拷贝还在
-  // 同上：copies / moves / Reset / explicit 构造 / 拷贝构造 / 移动构造
-};
-
-struct MoveOnlyThrowy {                // 移动构造不写 noexcept，且拷贝被删除
-  inline static int moves = 0;
-  int v;
-  explicit MoveOnlyThrowy(int x);
-  MoveOnlyThrowy(const MoveOnlyThrowy&) = delete;
-  MoveOnlyThrowy& operator=(const MoveOnlyThrowy&) = delete;
-  MoveOnlyThrowy(MoveOnlyThrowy&& o);  // 故意不写 noexcept
-  static void Reset();
-};
-
-// 建 vector<T>，依次 push_back T(0)..T(n-1)，【不要】reserve，逼它反复扩容
-template <typename T> void GrowVector(int n);
-```
+- `Counted`：一个 `int` 成员；一个 `explicit Counted(int)`；拷贝构造（每拷贝一次让 `copies` +1）；
+  **移动构造要带 `noexcept`**（每移动一次让 `moves` +1）；一个静态 `Reset()` 把两个计数器清零；
+  以及两个静态计数器 `copies` / `moves`（声明方式见 1.5）。
+- `CountedThrowy`：和 `Counted` 完全一样，唯一区别是**移动构造不写 `noexcept`**，拷贝仍然保留。
+- `MoveOnlyThrowy`：只有 `moves` 一个计数器；拷贝构造和拷贝赋值**必须禁止**；
+  移动构造**不写 `noexcept`**；也要有 `Reset()`。
+- 函数模板 `GrowVector<T>(int n)`：建一个 `std::vector<T>`，把 `T(0)..T(n-1)` 依次 `push_back` 进去，
+  **不要 `reserve`**，逼它反复扩容。
 
 **为什么这样设计**：三个类型的唯一区别就是"移动构造有没有 `noexcept`、拷贝还在不在"。
 把它们放进同一个 `GrowVector` 里跑，就能看出扩容时标准库到底选了移动还是拷贝：
@@ -445,7 +415,7 @@ template <typename T> void GrowVector(int n);
 
 ```bash
 cd projects/mysol/stage1
-g++ -std=c++17 p1_4_noexcept_test.cpp -I../../solutions -o p1_4 && ./p1_4
+g++ -std=c++17 p1_4_noexcept_test.cpp -I../../tests -o p1_4 && ./p1_4
 ```
 
 通过标准：`Result: 9/9 Passed`。
@@ -458,31 +428,17 @@ g++ -std=c++17 p1_4_noexcept_test.cpp -I../../solutions -o p1_4 && ./p1_4
 
 - **考什么**：`std::vector` 的拷贝是"逐个元素拷贝"，而移动是"只偷缓冲区"——把性能直觉变成可断言的计数。
 - **你要写**：`projects/mysol/stage1/p1_5_bench.h`。只写头文件。
-- **把哪个测评文件复制过来**：`solutions/stage1/p1_5_bench_test.cpp`。
+- **把哪个测评文件复制过来**：`tests/stage1/p1_5_bench_test.cpp`。
 - **测评点数**：6。
 
 **测评程序要求你提供：**
 
-```cpp
-struct Tracked {
-  inline static int copies = 0;
-  inline static int moves  = 0;
-  int v;
-  explicit Tracked(int x);
-  Tracked(const Tracked& o);          // ++copies
-  Tracked(Tracked&& o) noexcept;      // ++moves
-  static void Reset();
-};
-
-// 返回 n 个长度为 64、内容全是 'x' 的字符串
-inline std::vector<std::string> MakeLongStrings(size_t n);
-
-// 累加 vector 中所有字符串的长度
-inline size_t TotalLength(const std::vector<std::string>& v);
-
-// 累加 vector 中所有 Tracked 的 v
-inline long long SumValues(const std::vector<Tracked>& v);
-```
+- `Tracked`：一个 `int` 成员；`explicit Tracked(int)`；拷贝构造（`copies + 1`）；
+  **带 `noexcept` 的移动构造**（`moves + 1`）；静态 `Reset()`；两个静态计数器 `copies` / `moves`
+  （声明方式见 1.5）。
+- `std::vector<std::string> MakeLongStrings(size_t n)`：返回 n 个长度为 64、内容全是 `'x'` 的字符串。
+- `size_t TotalLength(const std::vector<std::string>& v)`：累加所有字符串的 `size()`。
+- `long long SumValues(const std::vector<Tracked>& v)`：累加所有元素的 `v`。
 
 **为什么长度取 64**：`std::string` 对很短的字符串会直接存在对象内部（SSO，小字符串优化），
 不产生堆分配，拷贝和移动的差别就看不出。长度 64 超过 SSO 阈值，字符串内容在堆上，
@@ -500,7 +456,7 @@ inline long long SumValues(const std::vector<Tracked>& v);
 
 ```bash
 cd projects/mysol/stage1
-g++ -std=c++17 p1_5_bench_test.cpp -I../../solutions -o p1_5 && ./p1_5
+g++ -std=c++17 p1_5_bench_test.cpp -I../../tests -o p1_5 && ./p1_5
 ```
 
 通过标准：`Result: 6/6 Passed`。

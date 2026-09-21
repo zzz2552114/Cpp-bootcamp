@@ -6,7 +6,7 @@
 //   BT_TEST(名字) { BT_CHECK(...); BT_CHECK_EQ(a, b); BT_CHECK_THROWS(expr, ExType); }
 //   BT_MAIN("Test Suite test_util.h")
 //
-// 编译：g++ -std=c++17 -pthread -I <solutions目录> xxx_test.cpp -o xxx && ./xxx
+// 编译：g++ -std=c++17 -pthread -I <tests 目录> xxx_test.cpp -o xxx && ./xxx
 #pragma once
 
 #include <exception>

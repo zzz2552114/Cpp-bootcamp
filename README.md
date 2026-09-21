@@ -57,7 +57,7 @@ projects/
 ├── REVIEW.md            # 对早期题目设计的评审（历史记录）
 ├── problems/            # ★ 题目：stage1.md ~ stage7.md（逐字读这个）
 ├── mysol/               # ★ 你的解答写在这里
-└── solutions/           # 参考解答 + 测评程序（只读）
+└── tests/           # 参考解答 + 测评程序（只读）
     ├── test_util.h               # 测评框架（BT_TEST / BT_CHECK / BT_MAIN）
     ├── stage1/ ... stage7/       # pX_Y_<topic>.h（答案）+ pX_Y_<topic>_test.cpp（测评）
     └── stage4/tests/             # P4.5 的 stdin/stdout 对拍用例
@@ -81,8 +81,8 @@ projects/
 2. 读完对应文件后，打开 `projects/problems/stageN.md`。每道题都写清了：**要你设计出什么、测评程序
    要求哪些接口、每个接口为什么长这样、测评点在查什么、怎么编译运行**。
 3. 在 `projects/mysol/stageN/` 下写你的 `.h`（只写头文件，**不要写 `main()`**），
-   把对应的测评文件从 `projects/solutions/stageN/` 复制到同一目录，然后编译运行。
-4. 遇到卡住的点，回到 repo 对应 `.cpp` 逐行重看，或对照 `solutions/stageN/pX_Y_*.h` 的参考实现。
+   把对应的测评文件从 `projects/tests/stageN/` 复制到同一目录，然后编译运行。
+4. 遇到卡住的点，回到 repo 对应 `.cpp` 逐行重看，或对照 `tests/stageN/pX_Y_*.h` 的参考实现。
 
 ### 构建与测试
 
@@ -91,7 +91,7 @@ projects/
 
 ```bash
 # 在 projects/mysol/stage1/ 下（单文件题）
-g++ -std=c++17 p1_1_statistics_test.cpp -I../../solutions -o p1_1 && ./p1_1
+g++ -std=c++17 p1_1_statistics_test.cpp -I../../tests -o p1_1 && ./p1_1
 ```
 
 - 并发题（stage6 全部、P7.2）加 `-pthread`；

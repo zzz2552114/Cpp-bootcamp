@@ -28,16 +28,16 @@
 
 ### 1.1 测评程序怎么用（回顾）
 
-`projects/solutions/stage3/*_test.cpp` 是测评程序，**自带 `main()`**；你只写头文件，不要写 `main()`。
+`projects/tests/stage3/*_test.cpp` 是测评程序，**自带 `main()`**；你只写头文件，不要写 `main()`。
 断言宏的说明见 `stage1.md` 第 1.1 节。操作流程同样是：在 `projects/mysol/stage3/` 下写 `.h`，
 把测评文件复制到同一目录，再编译。
 
 ```bash
 mkdir -p projects/mysol/stage3
-cp projects/solutions/stage3/p3_1_handle_test.cpp                   projects/mysol/stage3/
-cp projects/solutions/stage3/p3_2_iterator_test.cpp                 projects/mysol/stage3/
-cp projects/solutions/stage3/p3_3_rule_of_three_five_zero_test.cpp  projects/mysol/stage3/
-cp projects/solutions/stage3/p3_4_mylib/p3_4_mylib_test.cpp         projects/mysol/stage3/
+cp projects/tests/stage3/p3_1_handle_test.cpp                   projects/mysol/stage3/
+cp projects/tests/stage3/p3_2_iterator_test.cpp                 projects/mysol/stage3/
+cp projects/tests/stage3/p3_3_rule_of_three_five_zero_test.cpp  projects/mysol/stage3/
+cp projects/tests/stage3/p3_4_mylib/p3_4_mylib_test.cpp         projects/mysol/stage3/
 ```
 
 ### 1.2 RAII：资源就是"跟着对象走的东西"
@@ -87,7 +87,7 @@ auto h = MakeHandle(42);
 如果你想亲眼看到"取消消除之后会多出移动"，可以在编译时加 `-fno-elide-constructors`（会关闭 NRVO/部分消除）：
 
 ```bash
-g++ -std=c++17 -fno-elide-constructors p3_1_handle_test.cpp -I../../solutions -o p3_1_noelide && ./p3_1_noelide
+g++ -std=c++17 -fno-elide-constructors p3_1_handle_test.cpp -I../../tests -o p3_1_noelide && ./p3_1_noelide
 ```
 
 注意：C++17 里"返回 prvalue"的消除是语言规定，`-fno-elide-constructors` 也关不掉；
@@ -156,43 +156,35 @@ P3.3 有一个 `rule_of_0_destruction_is_cascading` 测试点专门抓这个。
 
 - **考什么**：RAII、只可移动的资源管理类、self-move、moved-from 的析构安全，以及观察拷贝消除（1.4）。
 - **你要写**：`projects/mysol/stage3/p3_1_handle.h`。只写头文件。
-- **复制过来的测评文件**：`solutions/stage3/p3_1_handle_test.cpp`。测评点数：11。
+- **复制过来的测评文件**：`tests/stage3/p3_1_handle_test.cpp`。测评点数：11。
 
-**测评程序要求你提供：**
+**测评程序会用到的接口（名字必须一致）：**
 
 ```cpp
 class Handle {
 public:
-  inline static int live = 0;       // 当前存活资源数（构造 +1，析构 -1）
-  inline static int acquires = 0;   // 构造次数
-  inline static int releases = 0;   // 释放次数
-  inline static int moves = 0;      // 移动构造/移动赋值次数
-
-  explicit Handle(int id);          // 记录 id，live++，acquires++
-  ~Handle();                        // 若仍有效：live--，releases++
-
-  Handle(const Handle&) = delete;
-  Handle& operator=(const Handle&) = delete;
-
-  Handle(Handle&& other) noexcept;             // 接管，源失效，moves++
-  Handle& operator=(Handle&& other) noexcept;  // self-move 防护 + 释放自身旧资源 + 接管
-
+  explicit Handle(int id);          // 记录 id
+  ~Handle();                        // 只有仍然有效时才释放资源、更新计数
   int  Id() const;
-  bool Valid() const;               // 是否还持有资源（moved-from 之后为 false）
-
-  static void ResetStats();         // acquires = releases = moves = 0
+  bool Valid() const;               // moved-from 之后为 false
+  static void ResetStats();         // 清空统计
 };
-
 inline Handle MakeHandle(int id);   // 按值返回一个 Handle
 ```
+
+下面这些要你自己补（每一条都对应一个观测点）：
+
+- 4 个公开静态计数器 `live` / `acquires` / `releases` / `moves`：含义与声明方式见 1.3；
+  构造、析构、移动分别该动哪几个计数器，自己想清楚。
+- **拷贝构造、拷贝赋值必须禁止**（一个资源只能有一个拥有者）。
+- **移动构造、移动赋值必须提供且标 `noexcept`**；移动赋值里要有 self-move 防护。
 
 **为什么是这些签名：**
 
 - 四个静态计数器 + `ResetStats()` 是测评的观测点（见 1.3）。`live` 用来验证不泄漏/不重复释放；
   `moves` 用来验证 RVO（1.4）；`acquires/releases` 用来验证 acquire 和 release 一一对应。
 - **`Valid()` 很关键**：移动之后源对象不应再释放资源，否则同一个资源会被释放两次。
-  析构里要"只有还有效时才 `live--; releases++`"。测评的 `moved_from_object_destructs_safely`
-  就在查这个。
+  析构里要“只有还有效时才更新计数”。测评的 `moved_from_object_destructs_safely` 就在查这个。
 - 移动操作必须 `noexcept`：测评有 `static_assert(std::is_nothrow_move_constructible_v<Handle>)`。
 - 移动赋值里要有 self-move 防护（`this == &other` 直接返回）：否则会先释放自己的资源再接管自己，
   对自己已经释放的资源再操作。测评有 `self_move_assign_is_safe`。
@@ -208,7 +200,7 @@ moved-from 析构安全；移动赋值释放旧资源；self-move 安全；`Make
 
 ```bash
 cd projects/mysol/stage3
-g++ -std=c++17 p3_1_handle_test.cpp -I../../solutions -o p3_1 && ./p3_1
+g++ -std=c++17 p3_1_handle_test.cpp -I../../tests -o p3_1 && ./p3_1
 ```
 
 通过标准：`Result: 11/11 Passed`。
@@ -221,18 +213,13 @@ g++ -std=c++17 p3_1_handle_test.cpp -I../../solutions -o p3_1 && ./p3_1
 
 - **考什么**：迭代器协议、`*`/`++`/`--` 的前后缀语义、past-the-end 的处理、range-for 的接口要求。
 - **你要写**：`projects/mysol/stage3/p3_2_iterator.h`。只写头文件。
-- **复制过来的测评文件**：`solutions/stage3/p3_2_iterator_test.cpp`。测评点数：17。
+- **复制过来的测评文件**：`tests/stage3/p3_2_iterator_test.cpp`。测评点数：17。
 
-**测评程序要求你提供：**
+**测评程序会用到的接口（名字必须一致）：**
+
+（先自己设计一个节点类型 `Node`：至少要能存一个 `int` 值以及前驱/后继指针，成员名由你决定。）
 
 ```cpp
-struct Node {                 // 双向链表节点
-  int value_;
-  Node* next_;
-  Node* prev_;
-  explicit Node(int v);
-};
-
 class DLLIterator {
 public:
   DLLIterator(Node* curr, Node* tail);   // 除了当前节点，还要带上尾节点（为了 --End()）
@@ -287,7 +274,7 @@ public:
 
 ```bash
 cd projects/mysol/stage3
-g++ -std=c++17 p3_2_iterator_test.cpp -I../../solutions -o p3_2 && ./p3_2
+g++ -std=c++17 p3_2_iterator_test.cpp -I../../tests -o p3_2 && ./p3_2
 ```
 
 通过标准：`Result: 17/17 Passed`。
@@ -302,7 +289,7 @@ g++ -std=c++17 p3_2_iterator_test.cpp -I../../solutions -o p3_2 && ./p3_2
 - **你要写的目录结构**（放在 `projects/mysol/stage3/` 下）：
   - `mylib/geometry.h`、`mylib/geometry.cpp`
   - `mylib/stats.h`、`mylib/stats.cpp`
-- **复制过来的测评文件**：`solutions/stage3/p3_4_mylib/p3_4_mylib_test.cpp`（放到 `mysol/stage3/`，
+- **复制过来的测评文件**：`tests/stage3/p3_4_mylib/p3_4_mylib_test.cpp`（放到 `mysol/stage3/`，
   它会 `#include "mylib/geometry.h"` 两次，用来验证 include guard）。测评点数：10。
 
 **测评程序要求：**
@@ -347,7 +334,7 @@ namespace mylib {
 
 ```bash
 cd projects/mysol/stage3
-g++ -std=c++17 p3_4_mylib_test.cpp mylib/geometry.cpp mylib/stats.cpp -I../../solutions -o p3_4 && ./p3_4
+g++ -std=c++17 p3_4_mylib_test.cpp mylib/geometry.cpp mylib/stats.cpp -I../../tests -o p3_4 && ./p3_4
 ```
 
 通过标准：`Result: 10/10 Passed`。
@@ -362,68 +349,30 @@ g++ -std=c++17 p3_4_mylib_test.cpp mylib/geometry.cpp mylib/stats.cpp -I../../so
 
 - **考什么**：隐式浅拷贝的危险、深拷贝、移动语义、以及用 `unique_ptr` 成员实现 Rule of 0（见 1.6）。
 - **你要写**：`projects/mysol/stage3/p3_3_rule_of_three_five_zero.h`。只写头文件。
-- **复制过来的测评文件**：`solutions/stage3/p3_3_rule_of_three_five_zero_test.cpp`。测评点数：12。
+- **复制过来的测评文件**：`tests/stage3/p3_3_rule_of_three_five_zero_test.cpp`。测评点数：12。
 
 > 这个头文件是"同一件事的 4 种写法对照"，所以内容比别的题多。测评程序用 `using namespace r3;`
 > 引入你定义的名字，并且会直接访问下面列出的成员，名字必须一致。
 
-**测评程序要求 `namespace r3` 里提供：**
+**测评程序会用到 `namespace r3` 里的这些名字（成员名必须一致）：**
 
-```cpp
-inline int g_allocs = 0;                 // 每次 new 节点 +1
-inline int g_frees  = 0;                 // 每次析构节点 +1
-inline void ResetCounters();             // 两个计数器清零
-
-// ① 反面教材：裸指针 + 编译器隐式生成的浅拷贝
-struct NaiveList {
-  struct N { int v; N* next; explicit N(int x); ~N(); };
-  N* head = nullptr;                     // 测评直接比较 a.head == b.head
-  void Push(int v);                      // 头插，new 一个节点
-  ~NaiveList();                          // 遍历删除
-  // 故意不写拷贝构造/拷贝赋值 → 编译器生成浅拷贝
-};
-
-// ② Rule of 3：手写析构 + 拷贝构造 + 拷贝赋值（深拷贝）
-class List3 {
-public:
-  struct N { int v; N* next; explicit N(int x); ~N(); };
-  void Push(int v);
-  const N* Head() const;                 // 返回头节点指针，测评会读 Head()->v / ->next
-  List3();
-  ~List3();
-  List3(const List3& o);                 // 深拷贝
-  List3& operator=(const List3& o);      // 先清空再深拷贝，注意自赋值
-};
-
-// ③ Rule of 5：Rule of 3 + 移动构造 + 移动赋值
-class List5 {
-public:
-  struct N { int v; N* next; explicit N(int x); ~N(); };
-  void Push(int v);
-  N* Head() const;
-  List5();
-  ~List5();
-  List5(const List5& o);
-  List5& operator=(const List5& o);
-  List5(List5&& o) noexcept;             // 偷指针并把源置空
-  List5& operator=(List5&& o) noexcept;  // self-move 防护 + 释放旧的 + 接管
-};
-
-// ④ Rule of 0：让成员自己管好所有权，一个特殊成员函数都不写
-class List0 {
-public:
-  struct N {
-    int v;
-    std::unique_ptr<N> next;             // ★ 每个节点拥有它的后继 → 整条链自动级联析构
-    explicit N(int x);
-    ~N();
-  };
-  void Push(int v);
-  int    Head() const;                   // 返回头节点的值（空链表返回 -1）
-  bool   Empty() const;
-  size_t Size() const;
-};
-```
+- 计数器：`g_allocs`、`g_frees`（两个全局变量，每次 `new` 节点 / 析构节点各 +1）和 `ResetCounters()`。
+  它们该怎么声明见 1.3。
+- `NaiveList`（反面教材）：
+  - 一个**公开的成员 `head`**（头指针）——测评会直接读写它；
+  - `Push(int)`：头插一个新节点；节点要有一个**公开的 `int` 成员，名字必须是 `v`**（测评读 `b.head->v`）；
+  - **故意不写拷贝构造/拷贝赋值**，让编译器生成浅拷贝；析构要遍历删除多少个节点就删多少个。
+- `List3`（Rule of 3）：
+  - `Push(int)`；
+  - `const N* Head() const`：返回头节点指针——节点要有**公开的 `int v` 和 `next`**（测评读 `Head()->v`、`Head()->next`）；
+  - **手写析构 + 拷贝构造 + 拷贝赋值**：拷贝时逐节点新建（深拷贝），赋值要注意自赋值。
+- `List5`（Rule of 5）：
+  - 在 `List3` 的基础上再**手写移动构造和移动赋值**（标 `noexcept`，赋值里做 self-move 防护）；
+  - `N* Head() const`（非 const 版本）。
+- `List0`（Rule of 0）：
+  - **用智能指针让成员自己管好所有权**：链表只用一个智能指针作为唯一 owner，并且**每个节点用智能指针拥有它的后继**；
+  - `Push(int)`、`int Head() const`（空链表返回 -1）、`bool Empty() const`、`size_t Size() const`；
+  - **一个特殊成员函数都不要写**。
 
 **为什么这样设计（每一版在演示什么）：**
 
@@ -449,7 +398,7 @@ Rule of 3 深拷贝独立、拷贝赋值独立、两个对象析构不重复释�
 
 ```bash
 cd projects/mysol/stage3
-g++ -std=c++17 p3_3_rule_of_three_five_zero_test.cpp -I../../solutions -o p3_3 && ./p3_3
+g++ -std=c++17 p3_3_rule_of_three_five_zero_test.cpp -I../../tests -o p3_3 && ./p3_3
 ```
 
 （可选）亲眼看看 double free 长什么样——这个参数会让 `NaiveList` 真的浅拷贝并析构：

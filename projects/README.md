@@ -10,9 +10,9 @@
 
 ```text
 projects/
-├── problems/               # ★ 题目描述：stage1.md ~ stage7.md，先读这个
-├── mysol/                  # ★ 你的解答写在这里（每个 stage 一个子目录）
-├── solutions/              # 参考实现 + 测评程序（只读，不要改）
+├── problems/               # 题目描述：stage1.md ~ stage7.md，先读这个
+├── mysol/                  # 你的解答写在这里（每个 stage 一个子目录）
+├── tests/              # 参考实现 + 测评程序（只读，不要改）
 │   ├── test_util.h         # 共用测试框架（BT_TEST / BT_CHECK / ...）
 │   └── stage1/ ... stage7/
 │       ├── pX_Y_*.h            # 参考实现（带详细注释）
@@ -36,20 +36,20 @@ projects/
    （`main()` 由测评程序提供）。
 4. **把测评程序复制到你的目录**：测评程序用 `#include "pX_Y_*.h"` 找你的头文件，而双引号包含
    会优先在测评文件自己所在目录里找。所以必须把测评文件复制到你的 `.h` 旁边，否则会错误地
-   包含到 `solutions/` 里的参考实现。
+   包含到 `tests/` 里的参考实现。
 5. **编译运行**，看到 `Result: N/N Passed` 即通过（测评程序输出全部是英文，避免中文乱码）。
-6. 卡住时再回看 `solutions/stageN/pX_Y_*.h` 的参考实现和注释；每题末尾的"自查"用来确认你真的懂了。
+6. 卡住时再回看 `tests/stageN/pX_Y_*.h` 的参考实现和注释；每题末尾的"自查"用来确认你真的懂了。
 
 ```bash
 # 以 Stage 1 的 P1.1 为例
 mkdir -p projects/mysol/stage1
-cp projects/solutions/stage1/p1_1_statistics_test.cpp projects/mysol/stage1/
+cp projects/tests/stage1/p1_1_statistics_test.cpp projects/mysol/stage1/
 # 在 projects/mysol/stage1/p1_1_statistics.h 里写你的实现，然后：
 cd projects/mysol/stage1
-g++ -std=c++17 p1_1_statistics_test.cpp -I../../solutions -o p1_1 && ./p1_1
+g++ -std=c++17 p1_1_statistics_test.cpp -I../../tests -o p1_1 && ./p1_1
 ```
 
-`-I../../solutions` 只是为了让测评文件找到 `test_util.h`。除此以外不需要别的参数。
+`-I../../tests` 只是为了让测评文件找到 `test_util.h`。除此以外不需要别的参数。
 
 ---
 
@@ -59,11 +59,11 @@ g++ -std=c++17 p1_1_statistics_test.cpp -I../../solutions -o p1_1 && ./p1_1
 
 | 情形 | 题目 | 命令 |
 | :-- | :-- | :-- |
-| 普通单文件（默认） | stage1、stage2 的 P2.1~P2.3、stage3 的 P3.1~P3.3、stage4、stage5、stage7 | `g++ -std=c++17 pX_Y_<topic>_test.cpp -I../../solutions -o pX_Y && ./pX_Y` |
-| 并发（必须加 `-pthread`） | stage6 全部、P7.2 | `g++ -std=c++17 -pthread pX_Y_<topic>_test.cpp -I../../solutions -o pX_Y && ./pX_Y` |
-| 多文件（要连你的 `.cpp` 一起编） | P2.4 | `g++ -std=c++17 p2_4_minimath_test.cpp minimath/min.cpp -I../../solutions -o p2_4 && ./p2_4` |
-| 多文件（要连你的 `.cpp` 一起编） | P3.4 | `g++ -std=c++17 p3_4_mylib_test.cpp mylib/geometry.cpp mylib/stats.cpp -I../../solutions -o p3_4 && ./p3_4` |
-| stdin/stdout 对拍（P4.5 附加） | P4.5 | 先 `g++ -std=c++17 p4_5_log_analyzer_cli.cpp -o cli`，再 `bash ../../solutions/stage4/tests/run_tests.sh ./cli` |
+| 普通单文件（默认） | stage1、stage2 的 P2.1~P2.3、stage3 的 P3.1~P3.3、stage4、stage5、stage7 | `g++ -std=c++17 pX_Y_<topic>_test.cpp -I../../tests -o pX_Y && ./pX_Y` |
+| 并发（必须加 `-pthread`） | stage6 全部、P7.2 | `g++ -std=c++17 -pthread pX_Y_<topic>_test.cpp -I../../tests -o pX_Y && ./pX_Y` |
+| 多文件（要连你的 `.cpp` 一起编） | P2.4 | `g++ -std=c++17 p2_4_minimath_test.cpp minimath/min.cpp -I../../tests -o p2_4 && ./p2_4` |
+| 多文件（要连你的 `.cpp` 一起编） | P3.4 | `g++ -std=c++17 p3_4_mylib_test.cpp mylib/geometry.cpp mylib/stats.cpp -I../../tests -o p3_4 && ./p3_4` |
+| stdin/stdout 对拍（P4.5 附加） | P4.5 | 先 `g++ -std=c++17 p4_5_log_analyzer_cli.cpp -o cli`，再 `bash ../../tests/stage4/tests/run_tests.sh ./cli` |
 
 每道题的具体命令在 `problems/stageN.md` 里都有，可以直接使用。
 
@@ -73,11 +73,11 @@ g++ -std=c++17 p1_1_statistics_test.cpp -I../../solutions -o p1_1 && ./p1_1
 
 | 形态 | 覆盖 | 位置 |
 | :-- | :-- | :-- |
-| ① 分级单元测试点 | 全部 28 个分级套件 | `solutions/stageN/pX_Y_*_test.cpp` |
-| ② stdin/stdout 对拍 | P4.5 | `solutions/stage4/tests/`（`case*.in` / `case*.ans` / `run_tests.sh`） |
+| ① 分级单元测试点 | 全部 28 个分级套件 | `tests/stageN/pX_Y_*_test.cpp` |
+| ② stdin/stdout 对拍 | P4.5 | `tests/stage4/tests/`（`case*.in` / `case*.ans` / `run_tests.sh`） |
 | ③ 随机对拍（对独立参考实现） | P1.5 / P4.5 / P5.1 / P6.1 / P7.2 | 各 `_test.cpp` 里的 `stress_*` 测试点 |
 
-P4.5 的 `.ans` 由**独立的 Python 朴素实现**生成（`solutions/stage4/tests/gen_cases.py`），
+P4.5 的 `.ans` 由**独立的 Python 朴素实现**生成（`tests/stage4/tests/gen_cases.py`），
 所以 `run_tests.sh` 的 diff 是真正的外部校验。
 
 ---
