@@ -9,6 +9,12 @@
 > src 教了容器怎么用；测评还会考几件**用容器必须懂、但 src 没展开**的事：`vector` 的**迭代器失效**、
 > `set` 的**比较器与严格弱序**、`unordered_map` 的**自定义键要配 hash**、
 > **lambda 捕获**、以及 **erase-remove 惯用法**。第 1 节把这几个讲清，然后才是题目。
+>
+> **阅读约定**：从 1.3 节开始，凡是从 src 里没有细讲、但本阶段题目会用到的知识点，都按同一个格式写：
+> **是什么** → **为什么需要它（它解决了什么问题）** → **常见用法** → **什么时候用** → **一个跟本题无关的例子**。
+> 凡是一行就能写完、写了就等于把答案送给你的东西，都写成"**必须自己想清楚、自己补上**"，
+> 把要求说清、把代码留给你写。另外，**每道题都明确写了名字该放在哪个命名空间里**，
+> 测评文件里写了 `using namespace XXX;`，命名空间不存在就直接编译失败，别漏。
 
 ---
 
@@ -75,6 +81,39 @@ cp projects/tests/stage4/p4_5_log_analyzer_cli.cpp           projects/mysol/stag
 
 P4.1 会用"数据起始地址有没有变"这个可观测量来证明上面的规则（`v.data()` 就是底层数组的首地址）。
 
+**是什么**：迭代器 / 指针 / 引用“失效”，指原来指向容器内某个元素的那个观察者不再指向有效元素。
+对 `vector` 而言，扩容会在新内存重新放置元素、释放旧内存，所有指向旧内存的迭代器/指针/引用都变成
+悬垂（dangling），继续使用就是未定义行为。
+
+**为什么会出现（细致）**：`vector` 的元素在内存里必须**连续存放**。当 `size` 超过 `capacity` 时，
+无法原地扩充（后面那块内存可能已经被别人占了），只能：申请一块更大的内存 → 把元素搬过去 →
+释放旧内存。元素被搬走后，旧地址当然失效。
+
+**常见用法 / 规律（记住这四条）**：
+
+| 操作 | 失效范围 |
+| :-- | :-- |
+| 越过 capacity 的 `push_back`/`insert`、`reserve`/`resize` 变大、`shrink_to_fit`、赋值、`swap` | **全部**迭代器/指针/引用 |
+| 中间 `insert`（未扩容）、`erase` | **被删/被插元素及其之后**的 |
+| 未越 capacity 的 `push_back`/`emplace_back` | 不失效 |
+| `clear` | 全部（但 capacity 不变，底层内存还在） |
+
+- **判断安不安全，看 `capacity` 而不是 `size`**：预先 `reserve` 够、后续 `push_back` 总数不超过 capacity，
+  中间就不会重分配，之前取得的指针/引用一直有效。
+- 要边遍历边删时，用 `erase` 返回的下一个迭代器，或者直接用 1.8 的 erase-remove 惯用法。
+
+**什么时候用**：任何“先存下一个指针 / 迭代器 / 引用，之后再访问”的代码都要想一遍这个问题。
+这是 BusTub 里最高发的 bug 类型之一。
+
+**一个跟本题无关的例子**：
+
+```cpp
+std::vector<int> v{1, 2, 3};
+int& first = v[0];
+v.push_back(4);        // 可能扩容 → first 悬垂
+// first = 5;          // 若真的扩容了，这行就是 UB
+```
+
 ### 1.4 `set` / `map` 的顺序与比较器：严格弱序
 
 `std::set<T>` 是**有序 + 唯一**的容器（`std::map` 就是 key→value 版）。它内部靠比较器维护顺序，
@@ -92,6 +131,35 @@ P4.1 会用"数据起始地址有没有变"这个可观测量来证明上面的�
 
 `std::set<int, std::greater<int>>` 直接就是降序集合。对 `std::pair<int,int>` 做 set 时，
 `pair` 自带按"先 first 后 second"的字典序比较。
+
+**是什么**：比较器（comparator）是告诉 `set`/`map` “怎么排序、怎么判等”的可调用对象
+（函数对象、函数指针、lambda）。默认是 `std::less<T>`（用 `operator<`）。
+`set` 判断两个元素相等靠的是 `!cmp(a,b) && !cmp(b,a)`，**不是 `operator==`**。
+
+**为什么需要它**：有序容器靠“保持顺序”才能做到 O(log n) 查找/插入；
+但“顺序”不一定就是 `operator<`——可能要降序、按两数之和、按坐标距离……所以顺序必须可配置。
+
+**常见用法**：
+
+- 降序：`std::set<int, std::greater<int>> s;`；
+- 自定义函数对象：`struct SumCmp { bool operator()(const std::pair<int,int>&, const std::pair<int,int>&) const; };`
+  （P4.2 会让你写这个）；
+- lambda 也能做比较器，但需要显式写出它的类型（`decltype(lambda)`）或 C++20 的新写法；
+- `std::map<K,V,Cmp>` 同理，比较器只作用于 key。
+
+**什么时候用**：需要一个“有序 + 唯一”的集合/映射，而默认顺序不是你要的顺序时。
+
+**一个跟本题无关的例子**（按字符串长度排序，长度相同再按字典序——保证严格弱序）：
+
+```cpp
+struct ByLen {
+  bool operator()(const std::string& a, const std::string& b) const {
+    if (a.size() != b.size()) return a.size() < b.size();
+    return a < b;                 // 同长度时用字典序打平，避免“两个不同串被判相等”
+  }
+};
+std::set<std::string, ByLen> s{"bb", "a", "ccc"};   // a, bb, ccc
+```
 
 ### 1.5 `unordered_map` 的两个坑：`operator[]` 会插入；自定义键要配 hash
 
@@ -114,6 +182,38 @@ C++17 还提供了 `try_emplace`（已存在则不覆盖）和 `insert_or_assign
 
 哈希函数只要"相等的东西哈希值一定相同、不同的东西尽量分散"即可；允许冲突（冲突只是变慢），
 不影响正确性。
+
+**是什么**：`unordered_map` 是哈希表（桶数组 + 碰撞处理），平均 O(1) 完成插入/查找/删除，
+但**遍历顺序是未指定的**（不同实现、不同插入顺序都可能不同）。
+
+**为什么需要它**：只要“查得快”，不在乎顺序时，它通常比 `map`（红黑树，O(log n)）更快；
+词频统计、缓存、去重这类场景是它的主场。
+
+**常见用法**：
+
+| 需求 | 推荐 |
+| :-- | :-- |
+| 查存不存在、取已有值 | `find`（不插入）/ `at`（不存在抛 `std::out_of_range`） |
+| 不存在则插入、已存在则保持 | `insert` / `try_emplace`（C++17） |
+| 已存在则覆盖、不存在则插入 | `insert_or_assign`（C++17） |
+| 计数 | `++m[key]`（会插入，确认存在时才用） |
+| 遍历 | `for (const auto& [k, v] : m)` |
+
+- **自定义键**要提供 `operator==` 和哈希：把哈希当第三个模板参数传（`PairHash`），
+  或者为类型特化 `std::hash`（`std::hash<Point>`）；两条路 P4.3 都练。
+
+**什么时候用**：频繁查找/计数、且不需要按 key 有序；需要有序遍历用 `map`，需要去重有序用 `set`。
+
+**一个跟本题无关的例子**：
+
+```cpp
+std::unordered_map<std::string, int> freq;
+for (const std::string& w : words) ++freq[w];      // 计数
+if (auto it = freq.find("the"); it != freq.end()) std::cout << it->second;
+```
+
+**两个额外的坑**：`insert` / `operator[]` 可能触发 **rehash**，使**迭代器**失效
+（但指向元素的指针/引用不受影响，因为节点本身不搬家）；`erase` 只失效被删元素的迭代器。
 
 ### 1.6 `auto` / `decltype` / 结构化绑定
 
@@ -142,6 +242,47 @@ for (const auto& [k, v] : m) { ... }      // 只读，零拷贝
 注意 `std::map` 的元素类型是 `std::pair<const K, V>`，所以 `k` 的类型带 `const`。
 写 `for (auto [k, v] : m)`（不带 `&`）会**整体拷贝**每个 pair，通常不是你要的。
 
+**是什么**：
+
+- `auto`：让编译器从初始化表达式推导类型；
+- `decltype(expr)`：给出表达式**确切**的类型（包括引用与 const）；
+- 结构化绑定（C++17）：一次性把一个 pair/tuple/聚合的成员拆成几个名字。
+
+**为什么需要它们**：C++ 的类型经常又长又难写（迭代器类型、嵌套模板），手写既痛苦又容易写错；
+`auto` 让代码短且类型自动跟随。代价是 `auto` **会剥掉引用和顶层 `const`**，于是可能**静默拷贝**。
+`decltype` 则是“不剥”的那个，用来保留引用。结构化绑定让 `for (auto& [k, v] : map)` 这种遍历变得干净。
+
+**常见用法 / 规则（背下这张表）**：
+
+| 写法 | 推出来的类型 | 会不会拷贝 |
+| :-- | :-- | :-- |
+| `auto a = s;`（s 是 `const std::string&`） | `std::string` | **会** |
+| `auto& b = s;` | `const std::string&` | 不会 |
+| `const auto& c = s;` | `const std::string&` | 不会（也能绑右值） |
+| `auto&& d = std::move(s);` | `const std::string&&` | 不会 |
+| `decltype(v[0])`（`vector<int>`） | `int&` | 不会 |
+| `decltype(x)`（x 是变量 `int`） | `int` | 不会 |
+| `decltype((x))`（带括号） | `int&` | 不会（带括号就当成“表达式”看值类别） |
+| 返回类型写 `decltype(auto)` | 按 `decltype` 规则保留引用 | 视情况 |
+| 结构化绑定 `auto [k,v]` | `first`/`second` 的“去引用”类型 | **会** |
+| 结构化绑定 `auto& [k,v]` | 引用，可改 | 不会 |
+| 结构化绑定 `const auto& [k,v]` | 只读引用 | 不会 |
+
+**什么时候用**：迭代器与长模板类型 → `auto`；只读遍历 → `const auto&`；要改元素 → `auto&`；
+需要函数返回引用 → `decltype(auto)`；遍历 `map` → `const auto& [k, v]`。
+
+**一个跟本题无关的例子**：
+
+```cpp
+std::unordered_map<std::string, std::vector<int>> index;
+for (const auto& [word, positions] : index) {   // 零拷贝（相对于 pair 而言）
+  std::cout << word << " appears " << positions.size() << " times\n";
+}
+```
+
+**注意**：`std::map` 的元素类型是 `std::pair<const K, V>`，所以在结构化绑定里 `k` 的类型自带 `const`；
+`auto [k, v]`（无 `&`）会把整个 pair 拷贝一份。
+
 ### 1.7 lambda 捕获
 
 `vectors.cpp` 里用过 `[](const Point& p){ return p.GetX() == 37; }`。方括号里决定 lambda 怎么拿到外部变量：
@@ -158,6 +299,43 @@ for (const auto& [k, v] : m) { ... }      // 只读，零拷贝
 按值捕获的对象生命周期跟着 lambda 自己；按引用捕获的变量必须在 lambda 被调用时还活着，否则就是悬垂引用。
 P4.5 会专门对比 `[&level]` 和 `[level]`。
 
+**是什么**：lambda 是“就地定义的匿名函数对象”。方括号 `[]` 是**捕获列表**，决定它怎么拿到外部变量；
+圆括号是参数；箭头是返回类型（可省）。
+
+**为什么需要它**：算法（`sort`/`find_if`/`remove_if`）、回调、线程函数都需要“传一段行为进去”。
+用独立函数或手写函数对象太啰嗦，而且拿不到局部变量；lambda 能就地写、还能捕获上下文。
+
+**常见用法**：
+
+| 写法 | 含义 |
+| :-- | :-- |
+| `[]` | 不捕获；用到外部变量就编译错误 |
+| `[x]` | 按值捕获 `x`（拷贝一份，lambda 内改的是副本） |
+| `[&x]` | 按引用捕获 `x`（能改到外面那个变量） |
+| `[=]` / `[&]` | 按值/引用捕获所有用到的外部变量（范围太大，慎用） |
+| `[this]` | 捕获当前对象的 `this`（成员函数里用） |
+| `[x = std::move(v)]` | 初始化捕获（C++14）：把 `v` 移进 lambda |
+| `[=]() mutable { ... }` | 允许修改按值捕获的副本 |
+| `[](auto x) { ... }` | 泛型 lambda（C++14） |
+
+- lambda 的类型是编译器生成的**唯一匿名类型**；要把它存起来通常用 `auto` 或 `std::function`
+  （后者有类型擦除开销，能 `auto` 就 `auto`）。
+- 想显式写返回类型：`[](int x) -> long { return x; }`。
+
+**什么时候用**：给算法传谓词/比较器、写回调、写线程函数、写“延迟执行”的闭包。
+
+**一个跟本题无关的例子**：
+
+```cpp
+std::vector<int> v{3, 1, 4, 1, 5};
+int threshold = 2;
+int cnt = std::count_if(v.begin(), v.end(), [threshold](int x) { return x > threshold; });
+std::sort(v.begin(), v.end(), [](int a, int b) { return a > b; });   // 降序
+```
+
+**两个必须记住的陷阱**：不要把捕获了**局部引用**的 lambda 存起来/返回出去（悬垂）；
+捕获 `[this]` 的 lambda 被存到对象死了之后再调用，也是悬垂。
+
 ### 1.8 erase-remove 惯用法
 
 `std::remove_if(begin, end, pred)` **不会真的删除元素**，也不能改变容器大小
@@ -170,6 +348,42 @@ v.erase(std::remove_if(v.begin(), v.end(), pred), v.end());
 
 `vectors.cpp` 里 `point_vector.erase(std::remove_if(...), point_vector.end())` 就是这一套。
 如果只调 `remove_if` 不 `erase`，`v.size()` 不会变，末尾会留下"已经搬走"的无效内容。
+
+**是什么**：erase-remove 惯用法 = `std::remove` / `std::remove_if` 把“该保留”的元素往前挪、
+返回新的逻辑结尾，再用容器的 `erase` 真正收缩 size。
+
+**为什么需要它**：`std::remove_if` 只拿到一对迭代器，**根本不知道容器本体**，所以它没有能力改 `size`。
+它是算法库（`<algorithm>`）里的通用算法，不是容器成员。所以必须由容器自己 `erase`。
+
+**常见用法**：
+
+```cpp
+// 按谓词原地删除
+v.erase(std::remove_if(v.begin(), v.end(), pred), v.end());
+
+// 按值删除
+v.erase(std::remove(v.begin(), v.end(), 42), v.end());
+
+// 过滤到新容器（不修改原容器）
+std::vector<T> out;
+std::copy_if(v.begin(), v.end(), std::back_inserter(out), pred);   // 需要 <iterator>
+```
+
+- `std::unique` 也是同一类算法（先去重，但它只去掉**相邻**重复，通常要先排序）。
+- `std::back_inserter(out)` 是一个“插入迭代器”：对它赋值就等于 `out.push_back(...)`。
+
+**什么时候用**：原地删除满足条件的元素、且要保持其余元素的相对顺序时（P4.5 的 `RemoveLevel` 就是）。
+
+**一个跟本题无关的例子**：
+
+```cpp
+std::vector<int> v{1, 2, 3, 4, 5, 6};
+v.erase(std::remove_if(v.begin(), v.end(), [](int x) { return x % 2 == 0; }), v.end());
+// v == {1, 3, 5}
+```
+
+**一个常见的错**：只写 `std::remove_if(...)` 不接 `erase`。编译能过，但 `size()` 没变，
+末尾几个位置里放着“被搬值后剩下的旧内容”，之后遍历就会看到不该看到的元素。
 
 ---
 
@@ -188,6 +402,9 @@ v.erase(std::remove_if(v.begin(), v.end(), pred), v.end());
 - **复制过来的测评文件**：`tests/stage4/p4_1_vector_invalidation_test.cpp`。测评点数：17。
 
 **测评程序要求 `namespace v4` 里提供：**
+
+> ⚠️ **命名空间**：测评文件里写着 `using namespace v4;`，所以下面这些名字**必须**放在 `namespace v4` 里。
+> 如果你直接写在全局，编译会报 `'v4' is not a namespace-name`。
 
 ```cpp
 struct CapSize {
@@ -212,6 +429,15 @@ bool AddressChangesPastCapacity(size_t exceed);
 但可以断言"底层数组地址变了"。`DataAddr` 就是把 `v.data()` 转成整数做比较；
 `AddressStableWithinCapacity` / `AddressChangesPastCapacity` 分别在验证 1.3 的两条结论。
 `CapSize` 用来把"capacity 和 size"一次返回，测评再分别读 `.cap` / `.size`。
+
+**下面这些你必须自己想清楚、自己补上（只给要求，不给能直接复制的代码）：**
+
+- `PushNTimes(n)` 要用一个**不 reserve** 的 `vector`，push n 次，返回最终的 `{capacity, size}`；
+- `ReserveThenPush` 要先 `reserve(reserve_n)` 再 push `push_n` 次；
+- `DataAddr` 把 `v.data()` 转成 `uintptr_t`（用 `reinterpret_cast`），目的是避免“比较悬垂指针”的语义争议；
+- `AddressStableWithinCapacity` / `AddressChangesPastCapacity` 要分别在“不超 capacity”与“越过 capacity”
+  两种情况下比较**地址是否变化**，返回 `bool`。（想一想：后者还必须保证开始的 `exceed` 确实超过初始 capacity。）
+- 五个函数都放在 `namespace v4` 里（见上方警告）。
 
 **要做的事**：实现这 5 个测量函数。注意它们的**返回值语义**（各函数的注释就是规格）。
 额外要求：`CapSize` 的成员名字必须是 `cap` 和 `size`（测评直接访问）。
@@ -244,6 +470,8 @@ g++ -std=c++17 p4_1_vector_invalidation_test.cpp -I../../tests -o p4_1 && ./p4_1
 
 **测评程序要求 `namespace s4` 里提供：**
 
+> ⚠️ **命名空间**：测评文件里写着 `using namespace s4;`，所以下面这些名字**必须**放在 `namespace s4` 里。
+
 ```cpp
 std::set<int> SortedUnique(const std::vector<int>& v);
 std::string   JoinAscending(const std::set<int>& s);          // 用空格连接，如 "1 3 5"
@@ -265,6 +493,15 @@ std::string KeysJoined(const std::map<std::string,int>& m);    // 按 key 顺序
   `(0,2)` 排在 `(1,1)` 前面（和都是 2，再按字典序）。
 - `SumCmp::operator()` 必须是 `const` 成员且返回严格弱序结果，否则 `set` 无法工作（1.4）。
 - `WordFreq` 用 `std::map` 而不是 `unordered_map`，就是为了让 key 有序，测评据此检查遍历顺序。
+
+**下面这些你必须自己想清楚、自己补上（只给要求，不给能直接复制的代码）：**
+
+- `SortedUnique`：用 `set` 的区间构造函数（两个迭代器）最省事；
+- `JoinAscending` / `JoinBySumOrder` / `KeysJoined`：注意**第一个元素前不加空格**，
+  `JoinBySumOrder` 的格式是 `(a,b)`；遍历顺序就是 `set`/`map` 的顺序，不要额外排序；
+- `SumCmp`：先比 `a.first + a.second`，相等时再比 `a < b`（`pair` 自带的字典序）——
+  不能只比和，否则“和相等但内容不同”的两个 pair 会被 `set` 当成同一个元素；
+- `operator()` 必须是 **`const` 成员函数**，且返回“严格弱序”的结果（用 `<`，不能用 `<=`）。见 1.4。
 
 **要做的事**：实现以上 6 个函数/类型。`SortedUnique` 可以直接用 `set` 的区间构造；
 `JoinAscending`/`JoinBySumOrder`/`KeysJoined` 按注释的格式拼接字符串。
@@ -296,6 +533,9 @@ g++ -std=c++17 p4_2_set_comparator_test.cpp -I../../tests -o p4_2 && ./p4_2
 - **复制过来的测评文件**：`tests/stage4/p4_3_unordered_custom_key_test.cpp`。测评点数：16。
 
 **测评程序要求你提供：**
+
+> ⚠️ **命名空间**：`PairHash` / `PairMap` / `Point` / `MakeBasicMap` 必须放在 `namespace u4` 里
+> （测评文件写着 `using namespace u4;`）；而 `std::hash<u4::Point>` 的特化必须写在 `namespace std` 里。
 
 ```cpp
 namespace u4 {
@@ -329,6 +569,14 @@ namespace std {
 - `MakeBasicMap` 是测评检查 `find/at/insert/erase/count/try_emplace` 行为的数据源，
   里面必须正好有 `foo=2, jignesh=445, spam=1, eggs=2` 这 4 个键值对。
 
+**下面这些你必须自己想清楚、自己补上（只给要求，不给能直接复制的代码）：**
+
+- `Point::operator==`：逐成员比较（`x == o.x && y == o.y`）；`unordered_map` 靠它判断键相等。
+- `PairHash::operator()`：把两个 `int` 的哈希组合起来，必须是 `const`，返回 `size_t`。
+- `std::hash<u4::Point>` 特化：写在 `namespace std` 里，`operator()` 应该是 `const noexcept`。
+- `MakeBasicMap`：正好四个键值对 `foo=2, jignesh=445, spam=1, eggs=2`（值不能写错，测评会断言）。
+- 所有这些名字都放在 `namespace u4` 里，除了 `std::hash` 特化放在 `namespace std`。
+
 **要做的事**：实现 `PairHash`、`Point` 的 `operator==`、`std::hash<Point>` 特化、`MakeBasicMap`。
 
 **测评点在查什么**：`m["nope"]` 会插入默认值并使 `size()` 变成 1；`find` 不插入；`at` 抛
@@ -360,6 +608,10 @@ g++ -std=c++17 p4_3_unordered_custom_key_test.cpp -I../../tests -o p4_3 && ./p4_
 
 **测评程序会用到的接口（名字必须一致）：**
 
+> ⚠️ **命名空间**：下面这些名字（包括 `Big`、`AtRef`、`AtVal`、`ScaleValues`、`SumPairs`）
+> **必须全部放在 `namespace a4` 里**。测评文件里写着 `using namespace a4;`，
+> 如果你定义在全局命名空间，`a4` 这个命名空间根本不存在，编译会直接失败。
+
 ```cpp
 struct Big {                       // 带拷贝计数的类型，用来证明 auto 会静默拷贝
   int v;                           // 要有一个 int 成员
@@ -377,6 +629,17 @@ int SumPairs(const std::vector<std::pair<int,int>>& v);      // 用结构化绑�
 
 `Big` 还需要一个**公开的静态计数器 `copies`**（每拷贝/拷贝赋值 +1，声明方式见 1.5），
 以及相应的拷贝构造和拷贝赋值——这两处都要让 `copies` 自增。
+
+**下面这些你必须自己想清楚、自己补上（只给要求，不给能直接复制的代码）：**
+
+- **`Big` 的内部成员**：一个 `int`（名字就叫 `v`，测评会读 `y.v`）；还有一个 `inline static int copies` 计数器。
+- **`Big` 的拷贝控制**：拷贝构造、拷贝赋值都要让 `copies` 自增（默认构造、移动不增）。
+  注意：手写了拷贝构造后，编译器不会再自动生成移动构造，但本题不需要移动。
+- **`AtRef` 为什么用 `decltype(auto)`**：`c[i]` 在 `vector` 上是 `int&`，`decltype(auto)` 会把这个引用原样带出去；
+  写成 `auto` 就变成了值（拷贝）。两个版本都要写。
+- **`ScaleValues` 的遍历**：必须用 `for (auto& [k, v] : m)` 才能原地改 value；
+  用 `for (auto [k, v] : m)` 只会改副本。返回值是把每个 `key + to_string(value)` 拼接起来。
+- **`SumPairs`**：用 `const auto& [a, b]` 遍历，累加 `a + b`。
 
 **为什么这样设计**：
 
@@ -421,6 +684,8 @@ g++ -std=c++17 p4_4_auto_decltype_test.cpp -I../../tests -o p4_4 && ./p4_4
 
 **测评程序要求 `namespace log5` 里提供：**
 
+> ⚠️ **命名空间**：测评文件里写着 `using namespace log5;`，所以要写的所有名字都放进 `namespace log5`。
+
 ```cpp
 using Counts = std::unordered_map<std::string, int>;
 
@@ -444,6 +709,17 @@ std::string Join(const std::vector<std::string>& v);               // 空格连�
 - `Filter` 用 lambda（可以像参考实现那样按引用捕获 `level`，也可以按值，行为一样）。
 - 测评里有一个 `lambda_capture_by_ref_vs_value` 测试点直接对比 `[&level]` 和 `[level]`（1.7），
   它是在测评文件里自己构造 lambda 的，不需要你额外提供什么，理解即可。
+
+**下面这些你必须自己想清楚、自己补上（只给要求，不给能直接复制的代码）：**
+
+- `CountLevels`：用 `unordered_map` 计数（`++counts[lvl]`）；
+- `UniqueLevels`：用 `set` 的区间构造实现“有序去重”；
+- `Filter`：返回**新** `vector`，保持原相对顺序，不要修改输入；
+- `RemoveLevel`：**必须**用 `erase(remove_if(...), logs.end())`（见 1.8），且 lambda 捕获 `level`；
+- `CountOf`：必须用 `find` 而不是 `operator[]`，否则查询不存在的 level 会静静往表里插一个键
+  （测评会检查 `c.size()` 没变）；
+- `Join` 是两个重载（`set<string>` 和 `vector<string>`），空格连接，第一个前面不加空格；
+- 所有名字都放在 `namespace log5` 里。
 
 **要做的事**：实现以上 7 个函数。
 

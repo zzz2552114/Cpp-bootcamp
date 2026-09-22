@@ -6,8 +6,19 @@
 > 3. `src/spring2024/s24_my_ptr.cpp` —— 从一个手写 `Pointer` 讲清"为什么不能拷贝、什么是 `std::move`"
 >
 > 主线考 `unique_ptr` / `shared_ptr` 的所有权语义。
-> 另外两件事测评会用到、src 没展开：`unique_ptr` 的 `release` / `reset` 究竟做了什么
-> （以及 `reset(get())` 为什么会 double free），和 `weak_ptr` 如何打破循环引用。放在第 1 节。
+> 另外几件事测评会用到、src 没展开：`unique_ptr` 的 `release` / `reset` 究竟做了什么
+> （以及 `reset(get())` 为什么会 double free）、`weak_ptr` 如何打破循环引用、
+> `make_unique`/`make_shared` 与裸 `new` 的差别、以及 `shared_ptr` 到底哪里线程安全。放在第 1 节。
+>
+> **阅读约定**：从 1.2 节开始，凡是从 src 里没有细讲、但本阶段题目会用到的知识点，都按同一个格式写：
+> **是什么** → **为什么需要它（它解决了什么问题）** → **常见用法** → **什么时候用** → **一个跟本题无关的例子**。
+> 凡是一行就能写完、写了就等于把答案送给你的东西，都写成"**必须自己想清楚、自己补上**"。
+>
+> ⚠️ **命名空间（本阶段四道题都要注意，但 markdown 之前漏写了）**：
+> 测评文件里写着 `using namespace tree5;` / `own5` / `reg5` / `weak5`，
+> 所以**每道题的接口必须放在对应的命名空间里**（分别为 `tree5`、`own5`、`reg5`、`weak5`）。
+> 如果你把它们直接写在全局命名空间，那个命名空间根本不存在，编译会报 `'tree5' is not a namespace-name`。
+> 命名空间本身怎么用、跨文件怎么写，见 `stage2.md` 第 1.9 节和 `stage3.md` 第 1.7 节。
 
 ---
 
@@ -52,6 +63,41 @@ cp projects/tests/stage5/p5_4_weak_ptr_test.cpp     projects/mysol/stage5/
   - 只是借用/修改对象 → 传 `std::unique_ptr<T>&` 或 `T*`（不转移所有权）；
   - 要接管所有权 → 按值传 `std::unique_ptr<T>`，调用时 `std::move(up)`。
 
+**补充：`make_unique` vs `unique_ptr<T>(new T)`、`unique_ptr<T[]>`、自定义删除器**
+
+**是什么**：`std::make_unique<T>(args...)`（C++14）是创建 `unique_ptr` 的工厂函数，
+内部用变参模板 + 完美转发直接在堆上构造 `T`，不需要你写 `new`。
+
+**为什么需要它**：
+
+1. 你不需要写裸 `new`，从代码上就杜绝了“`new` 了却忘了交给智能指针”这种泄漏；
+2. 异常安全：如果构造过程中抛异常，`make_unique` 内部保证堆内存被释放，
+   而手动写 `f(std::unique_ptr<T>(new T), g())` 这类代码在求值顺序上有微妙风险（历史上确实有泄漏案例）。
+
+**常见用法**：
+
+| 需求 | 写法 |
+| :-- | :-- |
+| 默认构造 | `auto p = std::make_unique<T>();` |
+| 带参构造 | `auto p = std::make_unique<T>(a, b);` |
+| 动态数组 | `auto arr = std::make_unique<int[]>(n);`，用 `arr[i]` 访问；`unique_ptr<T[]>` 用 `delete[]`，不支持 `*arr` / `arr->` |
+| 非 new/delete 的资源 | 自定义删除器：`std::unique_ptr<FILE, decltype(&std::fclose)> f(std::fopen(p, "r"), &std::fclose);` |
+
+**什么时候用**：创建 `unique_ptr` 时**默认用 `make_unique`**。只有当你拿到的是一个已经存在的裸指针，
+或者需要自定义删除器时，才直接写 `unique_ptr<T>(ptr, deleter)`。
+
+**一个跟本题无关的例子**：
+
+```cpp
+// 用 unique_ptr 管理 C 的 FILE*，删除器是 fclose
+std::unique_ptr<std::FILE, decltype(&std::fclose)> fp(std::fopen("log.txt", "r"), &std::fclose);
+if (fp) { /* 用 fp.get() 或 *fp 当 FILE* 用 */ }   // 离开作用域自动 fclose
+```
+
+**注意**：`unique_ptr` 的**删除器是类型的一部分**（第二个模板参数），所以两个删除器不同的 `unique_ptr`
+是不同类型，互相不能直接赋值。这也是它和 `shared_ptr` 的一个重大差别（`shared_ptr` 的删除器
+是类型擦除的，不在类型里）。
+
 ### 1.3 `release`、`reset` 与 `reset(get())` 的陷阱
 
 `std::unique_ptr` 有两个容易混的成员：
@@ -71,6 +117,46 @@ cp projects/tests/stage5/p5_4_weak_ptr_test.cpp     projects/mysol/stage5/
 P5.2 有一个测试点会给你一个**安全写法**：先把所有权 `release()` 出来（此时内部变空、`old` 为 `nullptr`），
 再 `reset()` 回去。
 
+**是什么**：
+
+- `release()`：交出裸指针、自己变空，**不删除对象**。调用者接下裸指针后负责 `delete`。
+- `reset(p = nullptr)`：删除当前持有的对象（如果有），然后改为持有 `p`。
+
+**为什么需要它们**：智能指针要和外部世界打交道——把所有权交给一个 C API、
+把所有权拿出来手工处理、提前释放、或用新资源替换旧资源。这两个接口就是“所有权出入口”。
+
+**标准对 `reset(p)` 的规定顺序**（这是 `reset(get())` 会 double free 的根源）：
+
+1. 记下 `old = get()`；
+2. 把内部指针设为 `p`；
+3. **如果 `old` 非空，就 `delete old`**——**不比较 `old` 和 `p`**。
+
+所以 `up.reset(up.get())` 会：记住 old（就是当前对象）→ 内部指针设成同一个值 → `delete old`
+→ 对象被删了，可 `up` 还捏着悬垂指针，之后 `up` 析构时再删一次 → **double free**。
+
+**常见用法**：
+
+| 调用 | 结果 |
+| :-- | :-- |
+| `p.release()` | 返回裸指针，`p` 变空；调用者负责 `delete` |
+| `p.reset()` | 删除当前对象，`p` 变空 |
+| `p.reset(new T(...))` | 删除旧对象，接管新对象 |
+| `p.reset(p.get())` | ❌ double free；安全写法是先 `release()` 再 `reset()` |
+
+**什么时候用**：
+
+- 要把所有权交给一个只收裸指针/C 句柄的 API → 先 `release()`；
+- 要提前释放 → `reset()`；
+- 要换一个资源 → `reset(new T)`。
+
+**一个跟本题无关的例子**：把一个库的句柄从一个 `unique_ptr` 转给另一个“老 API”：
+
+```cpp
+RawHandle* h = p.release();        // 我们现在负责这个句柄
+LegacyRegister(h);                 // 老 API 接管了它；不要再 delete
+p.reset();                         // p 已是空，这步无事发生
+```
+
 ### 1.4 `shared_ptr`：共享所有权与引用计数
 
 `std::shared_ptr<T>` 允许多个指针共享同一个对象。它内部有一个**控制块**记录引用计数：
@@ -84,6 +170,44 @@ P5.2 有一个测试点会给你一个**安全写法**：先把所有权 `releas
 `use_count()` 返回当前计数。注意它主要用于调试：多线程下读到的值天生有竞态，不要拿它做逻辑判断。
 另外"对象还活着"和"对象还在某个注册表里"是两回事——一个对象被移出 map 后，
 只要还有别的 `shared_ptr` 指着它，它就仍然存活。P5.3 专门考这一点。
+
+**补充：`make_shared` vs `shared_ptr<T>(new T)`；`shared_ptr` 到底哪里线程安全**
+
+**是什么**：`shared_ptr` 内部除了对象指针，还有一个**控制块**，里面存强引用计数、弱引用计数、删除器等。
+`make_shared<T>(args...)` 会在**一次分配**里同时放下对象和控制块。
+
+**为什么需要它 / 两种创建方式的选择**：
+
+| 方式 | 分配次数 | 说明 |
+| :-- | :-- | :-- |
+| `std::make_shared<T>(args...)` | 1 | 对象与控制块相邻，更快、缓存友好；**推荐默认用** |
+| `std::shared_ptr<T>(new T(...))` | 2（对象 + 控制块） | 需要自定义删除器、或对象已经存在时用 |
+
+- `make_shared` 的副作用：对象内存要等强、弱计数都归零才释放，所以如果还有 `weak_ptr` 长期观察，
+  对象内存会比你预期多一点存在。
+
+**线程安全（非常重要，容易记错）**：
+
+- 控制块的引用计数是**原子**的：不同线程各自持有**各自的 `shared_ptr` 副本**，各自拷贝/销毁，是安全的。
+- **多个线程同时读写同一个 `shared_ptr` 对象本身**（同一个变量），**不是**线程安全的，需要 `mutex`
+  （C++20 有 `std::atomic<std::shared_ptr<T>>`）。
+- **被指向的对象也不是自动线程安全的**：两个线程同时 `p->field++` 一样是数据竞争（stage6 的主题）。
+
+**常见用法**：`auto sp = std::make_shared<Config>(...);`；把 `shared_ptr` 存进容器共享；
+`weak_ptr` 配合观察。
+
+**什么时候用**：真的需要“多个所有者、最后一个析构时释放”时才用 `shared_ptr`。
+如果只是“不拷贝地读”，传 `const T&` 或 `T*` 更便宜、语义也更清楚。
+
+**一个跟本题无关的例子**：一个只读的配置对象被多个子系统共享：
+
+```cpp
+struct Config { int retries; };
+auto cfg = std::make_shared<Config>(Config{3});
+registry.SetConfig(cfg);      // 拷贝 shared_ptr → 计数 +1
+worker.Start(cfg);            // 再 +1
+// 三个 owner 都死了才释放 Config
+```
 
 ### 1.5 `weak_ptr`：不增加计数的"观察者"
 
@@ -110,11 +234,77 @@ struct Node { std::shared_ptr<Node> next; };   // A→B→A 成环
 因为 `lock()` 返回的是 `shared_ptr`，访问对象前先 `if (auto sp = w.lock()) { sp->...; }`，
 这样在 `sp` 存活期间对象一定不会消失。
 
+**是什么**：`weak_ptr` 也指向 `shared_ptr` 管理的对象，但**不增加强引用计数**，
+它只是一个“观察者/弱引用”。它通过控制块里的**弱计数**知道自己什么时候过期。
+
+**为什么需要它（它解决了什么问题）**
+
+1. **打破循环引用**（本阶段主题）：A、B 用 `shared_ptr` 相互指向，外部引用都消失后计数仍各 >= 1，
+   永远不析构 → 内存泄漏。把环里**任意一条边**改成 `weak_ptr`，环就断了。
+2. **不拥有但需要访问**：观察者列表、回调注册表、缓存——想在对象还活着时访问它，
+   但不想因为“我还在看”而阻止它析构。
+3. **缓存/索引**：`unordered_map<K, weak_ptr<V>>` 可以拿缓存对象而不延长它的寿命。
+
+**常见用法**：
+
+| 操作 | 含义 |
+| :-- | :-- |
+| `w.expired()` | 对象是否已被析构（强引用数是否为 0） |
+| `w.lock()` | 尝试“升级”为 `shared_ptr`：对象还在就返回一个增加计数的 `shared_ptr`，否则返回空 |
+| `w.use_count()` | 观察到的强引用数 |
+| `w.reset()` | 放弃观察，不影响强引用 |
+| `w = sp` / `weak_ptr<T> w(sp)` | 从 `shared_ptr` 构造弱引用，计数不变 |
+
+**什么时候用**：环里的反向边；父子结构中“子看父”；观察者/回调；缓存。
+
+**一个跟本题无关的例子**（事件源 + 观察者，观察者析构后自动不再收到通知）：
+
+```cpp
+class Source {
+ public:
+  void Subscribe(const std::shared_ptr<Observer>& o) { subs_.push_back(o); }
+  void Notify() {
+    for (auto& w : subs_) if (auto o = w.lock()) o->OnEvent();   // 已死的自动跳过
+  }
+ private:
+  std::vector<std::weak_ptr<Observer>> subs_;   // 不拥有观察者
+};
+```
+
+**两个注意**：`expired()` 和 `lock()` 之间状态可能改变，所以有并发时**直接 `lock()` 并检查返回值**，
+不要写 `if (!w.expired()) { auto sp = w.lock(); ... }`。另外 `weak_ptr` 不增加计数，
+所以“看到”的对象可能在下一行就被别人销毁——必须先 `lock()` 拿到 `shared_ptr`。
+
 ### 1.6 用计数器观察"对象有没有被正确释放"
 
 P5 的测评用 `inline static int live`（见 `stage1.md` 1.5）数"当前存活对象数"：
 构造 +1、析构 -1。测试结束时 `live` 回到初始值，就说明所有权处理正确、没有泄漏也没有重复释放。
 `weak_ptr` 那一题的计数器是命名空间里的 `g_live`，因为要同时观察好几个类型。
+
+**是什么**：一个“当前存活对象数”计数器：构造时 +1、析构时 -1。
+（内部实现和“为什么要 `inline static`”见 `stage3.md` 第 1.3 节 / `stage1.md` 第 1.5 节。）
+
+**为什么需要它**：所有权题目的对不对，几乎都体现在“对象什么时候被释放”上：
+漏了一处 `release` 就泄漏，多删一次就 double free。`live` 回到初始值就同时证明了这两件事都没发生。
+
+**常见用法**：
+
+```cpp
+struct User {
+  inline static int live = 0;
+  explicit User(std::string n) : name_(std::move(n)) { ++live; }
+  ~User() { --live; }
+};
+```
+
+**什么时候用**：裸资源管理、智能指针、容器所有权（本阶段四道题都在用）。
+管理多个类型时用一个命名空间级的 `g_live`（P5.4）。
+
+**一个跟本题无关的例子**：验证“把对象放进 `vector` 后 `reserve` 不会额外析构构造函数对象”，
+或者验证“两个 `shared_ptr` 指向同一对象时，对象只析构一次”。
+
+> **另外提醒**：本阶段所有题的名字都要放进各自的命名空间（`tree5` / `own5` / `reg5` / `weak5`），
+> 测评文件里有 `using namespace ...;`。
 
 ---
 
@@ -127,6 +317,9 @@ P5 的测评用 `inline static int live`（见 `stage1.md` 1.5）数"当前存�
 - **复制过来的测评文件**：`tests/stage5/p5_1_binary_tree_test.cpp`。测评点数：13。
 
 **测评程序会用到的接口（名字必须一致）：**
+
+> ⚠️ **命名空间**：测评文件里写着 `using namespace tree5;`，所以 `BinaryTree`（以及你自己设计的 `Node`）
+> 必须放在 `namespace tree5` 里。
 
 ```cpp
 class BinaryTree {
@@ -158,6 +351,19 @@ public:
 - 因为成员是 `unique_ptr`，**拷贝自动被删除、移动自动可用**；测评用 `static_assert` 检查
   `!is_copy_constructible_v<BinaryTree>` 和 `is_move_constructible_v<BinaryTree>`。
 
+**下面这些你必须自己想清楚、自己补上（只给要求，不给能直接复制的代码）：**
+
+- **`Node` 的成员**：一个 `int` 值 + 两个 `std::unique_ptr<Node>`（左、右孩子）；名字由你定。
+  构造函数把值存下、两个孩子默认空。
+- **`BinaryTree` 的成员**：只需要一个 `std::unique_ptr<Node>` 当根。
+- **插入的定位方式**：递归时用 `std::unique_ptr<Node>&`（对“槽位”的引用）最方便，
+  空槽就 `= std::make_unique<Node>(x)`；重复值一律走右子树。
+- **`Contains` 必须能处理 const 树**：所以递归辅助函数要接收 `const std::unique_ptr<Node>&`，
+  不能只写非 const 版本。
+- **不要手写任何特殊成员函数**：成员是 `unique_ptr`，拷贝自动被删、移动自动可用（Rule of 0）。
+  注意：如果只写 `BinaryTree(BinaryTree&&) = default;` 而不写移动赋值，测评的 `is_move_constructible`
+  能过，但为了语义完整建议两个都 `= default`。
+
 **要做的事**：实现 `Node` 和 `BinaryTree`。递归时可以用 `std::unique_ptr<Node>&` 引用表示"某个槽位"，
 插入就是给这个槽位赋值。**不要**手写 `delete`，也不要用裸指针拥有孩子。
 
@@ -187,6 +393,9 @@ g++ -std=c++17 p5_1_binary_tree_test.cpp -I../../tests -o p5_1 && ./p5_1
 - **复制过来的测评文件**：`tests/stage5/p5_2_ownership_test.cpp`。测评点数：15。
 
 **测评程序会用到的接口（名字必须一致）：**
+
+> ⚠️ **命名空间**：测评文件里写着 `using namespace own5;`，所以 `Widget` 与下面 6 个函数
+> 必须放在 `namespace own5` 里。
 
 ```cpp
 struct Widget {
@@ -220,6 +429,17 @@ int  TakeAndDestroy(std::unique_ptr<Widget> up);            // 按值收下，�
   注意**不要**写成 `up.reset(up.get())`，那会 double free。
 - `TakeAndDestroy` 按值收下，返回 `up->v`，函数返回时 `up` 析构、对象释放。
 - `Widget::live` 计数器用来验证每个环节都没有泄漏。
+
+**下面这些你必须自己想清楚、自己补上（只给要求，不给能直接复制的代码）：**
+
+- **`Widget` 的成员**：一个公开的 `int v`（名字就叫 `v`，测评读 `up->v`），
+  以及一个公开的静态计数器 `live`（构造 +1、析构 -1，见 1.6）。
+- `Borrow`：参数是 `std::unique_ptr<Widget>&`，只改对象（`up->v += 1`），不得 `reset` / `release`。
+- `Observe`：参数是 `const Widget*`（**非拥有**），空指针返回 `-1`，**绝对不能 `delete`**。
+- `Take`：**按值**接收 `unique_ptr`，然后把它移出去返回（证明“移交后由被调用者负责”）。
+- `Make`：用 `make_unique` 返回新对象的所有权。
+- `ResetKeepingSamePointer`：安全写法是先 `release()` 再 `reset()`；**不要**写 `up.reset(up.get())`。
+- `TakeAndDestroy`：按值收下，返回 `up->v`；函数结束时 `up` 析构、对象释放。
 
 **要做的事**：实现以上 6 个函数。核心是"让所有权关系在函数签名上一眼可见"。
 
@@ -256,6 +476,9 @@ g++ -std=c++17 p5_2_ownership_test.cpp -I../../tests -o p5_2 && ./p5_2
 
 **测评程序会用到的接口（名字必须一致）：**
 
+> ⚠️ **命名空间**：测评文件里写着 `using namespace reg5;`，所以 `User` 与 `UserRegistry`
+> 必须放在 `namespace reg5` 里。
+
 ```cpp
 struct User {
   std::string name_;                       // 名字成员名必须是 name_
@@ -290,6 +513,17 @@ public:
   测评会在 `RemoveUser` 后检查 `u1->Name()` 仍可用、`live` 没变。这是本题最重要的考点。
 - `User::live` 计数器验证"最后一个 owner 消失时才析构"。
 
+**下面这些你必须自己想清楚、自己补上（只给要求，不给能直接复制的代码）：**
+
+- **`User` 的成员**：一个公开的 `std::string name_`（名字就叫 `name_`，测评只通过 `Name()` 读）、
+  以及公开静态 `live`；构造函数 `++live`、析构 `--live`。
+- **`UserRegistry` 的成员**：一张 `unordered_map<int, std::shared_ptr<User>>`（名字你自定）。
+- **`AddUser`**：`make_shared` 创建并存放；同一 id 再插会覆盖旧值。
+- **`GetUser`（两个重载）**：按值返回 `shared_ptr`（所以计数 +1）；找不到返回空。
+  两个重载就差 `const`，实现可以互相调用。
+- **`PeekUseCount`**：只读 map 里那个 `shared_ptr` 的 `use_count()`，不能额外拷贝；不存在返回 `-1`。
+- **`RemoveUser`**：只从 map 删；外部还持有的 `shared_ptr` 不受影响。
+
 **要做的事**：实现 `User` 和 `UserRegistry`。
 
 **测评点在查什么**：`AddUser` 后计数为 1；`GetUser` 后为 2、两个副本为 3；找不到返回空；
@@ -320,6 +554,9 @@ g++ -std=c++17 p5_3_registry_test.cpp -I../../tests -o p5_3 && ./p5_3
 - **复制过来的测评文件**：`tests/stage5/p5_4_weak_ptr_test.cpp`。测评点数：10。
 
 **测评程序会用到的接口（名字必须一致）：**
+
+> ⚠️ **命名空间**：测评文件里写着 `using namespace weak5;`，所以 `BadNode` / `GoodNode` / `Parent` / `Child`、
+> 以及观测用的 `g_live` 和 `ResetLive()` **全部**要放在 `namespace weak5` 里。
 
 （`namespace weak5` 里还需要两个东西做观测：`g_live`（当前存活对象数）和 `ResetLive()`，
 声明方式与用法见 1.6。）
@@ -362,6 +599,16 @@ struct Child {
 - `GoodNode` 把反方向的边改成 `weak_ptr`，外部引用消失后两个对象都能正常析构。
 - `Parent`/`Child` 是最常见的实际用法：父拥有子（强），子观察父（弱）。
   测评检查 `child->parent.lock()` 能拿到父、`parent` 先析构后 `child->parent.expired()` 为真。
+
+**下面这些你必须自己想清楚、自己补上（只给要求，不给能直接复制的代码）：**
+
+- **`BadNode`**：`name` + `std::shared_ptr<BadNode> next`（故意做成环的反面教材，不要“修好”它）。
+- **`GoodNode`**：`name` + 强 `shared_ptr<GoodNode> next` + 弱 `weak_ptr<GoodNode> prev`。
+- **`Parent` / `Child`**：父用强 `shared_ptr<Child> child`；子用弱 `weak_ptr<Parent> parent`。
+  想清楚：为什么 `Child` 必须用弱引用，否则父子也会互相赋着不放。
+- **`Parent` 里用 `Child`**：需要先 `struct Child;` 前置声明，`Parent` 才能写 `shared_ptr<Child>`。
+- **`g_live` / `ResetLive()`**：每个类型构造 `++g_live`、析构 `--g_live`；`ResetLive()` 把它清零。
+- 所有名字都在 `namespace weak5` 里。
 
 **要做的事**：实现这 4 个类型，构造函数 `++g_live`、析构函数 `--g_live`。
 

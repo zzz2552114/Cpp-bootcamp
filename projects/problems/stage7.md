@@ -9,6 +9,15 @@
 >
 > 第 1 节先补两块知识：**完美转发与变参模板**（P7.1 的 `MyMakeUnique` 要用），
 > 以及 **buffer pool 的帧/页表模型**和两个并发陷阱（P7.2 会踩）。
+>
+> **阅读约定**：凡是从 src 里没有细讲、但本阶段题目会用到的知识点，都按同一个格式写：
+> **是什么** → **为什么需要它（它解决了什么问题）** → **常见用法** → **什么时候用** → **一个跟本题无关的例子**。
+> 凡是一行就能写完、写了就等于把答案送给你的东西，都写成"**必须自己想清楚、自己补上**"。
+>
+> ⚠️ **命名空间（之前漏写了，必看）**：测评文件里写着 `using namespace myptr7;`（P7.1）、
+> `bp7`（P7.2）。所以 `MyUniquePtr` / `MyMakeUnique` 必须放在 `namespace myptr7` 里，
+> `Page` / `MiniBufferPool` 必须放在 `namespace bp7` 里，否则编译直接报
+> `'myptr7' is not a namespace-name`。
 
 ---
 
@@ -56,6 +65,57 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 
 P7.1 会让你写一个等价的 `MyMakeUnique<T>(args...)`。
 
+**是什么**：
+
+- **变参模板**：`template <typename T, typename... Args>` 里的 `Args` 是"任意多个类型"的参数包（parameter pack），
+  `args` 是"任意多个值"；
+- **转发引用**：形参写成 `Args&&... args`，只有当 `Args` 是被推导出来时，它才是“转发引用”，
+  能同时绑定左值和右值；
+- **完美转发**：用 `std::forward<Args>(args)...` 把每个参数**按它原本的值类别**传下去，
+  左值继续当左值、右值继续当右值。
+
+**为什么需要它们**：`make_unique<T>(a, b, c)` 必须能接受 `T` 的**任意**构造函数签名（0 个、1 个、多个参数）。
+如果不用完美转发：按值传会多拷一份；写 `std::move` 会把调用者还想保留的左值搬空；
+写具体的 `const T&` 又接不了不可拷贝的类型。
+
+**常见用法**：
+
+```cpp
+template <typename T, typename... Args>
+std::unique_ptr<T> make_unique(Args&&... args) {
+  return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
+```
+
+- **包展开**里的 `...` 会把一个包“铺开”到每个元素；`sizeof...(Args)` 给出参数个数（编译期）。
+- C++17 的**折叠表达式**（fold expression）可以直接对包做运算：
+
+```cpp
+template <typename... Ts>
+auto Sum(const Ts&... xs) { return (xs + ...); }    // (xs + ...) 展开成 x1 + x2 + ...
+Sum(1, 2, 3);                                       // 6
+```
+
+**什么时候用**：写工厂（`make_unique`/`make_shared`）、容器就地构造（`emplace_back`）、
+`std::thread` 参数转发、通用的包装器/装饰器时。
+
+**一个跟本题无关的例子**：一个能打印任意个参数的日志函数：
+
+```cpp
+template <typename... Ts>
+void LogAll(const Ts&... xs) {
+  ((std::cout << xs << ' '), ...);      // 折叠表达式
+  std::cout << '\n';
+}
+LogAll(1, std::string("hello"), 3.5);
+```
+
+**三个容易错的点**：
+
+- `Args&&` 只有在 `Args` 是模板参数被推导时才是转发引用；写 `int&&`、`std::vector<T>&&` 就是普通右值引用。
+- `std::forward<Args>(args)...` 必须写成 `Args` 而不是 `T`（否则值类别会错）。
+- 完美转发要求引用的对象在你使用前一直有效；把 `args` 存起来再用时要小心悬垂。
+
 ### 1.3 `explicit operator bool`、`Reset`、`Swap`
 
 - `explicit operator bool() const`：让 `if (p)`、`!p` 可用，但**禁止**隐式转成整数
@@ -66,6 +126,47 @@ P7.1 会让你写一个等价的 `MyMakeUnique<T>(args...)`。
 - `Release()`：交出裸指针、自己变空，**不删除对象**；调用者接住后负责 `delete`。
 - `Swap(MyUniquePtr& other)`：交换两个指针，常用 `std::swap(ptr_, other.ptr_)`。
 - 移动构造/赋值必须 `noexcept`；移动赋值要有 self-move 防护；移动后源为 `nullptr`。
+
+**补充：这些接口/关键字到底是为什么**
+
+**是什么**：
+
+- `explicit operator bool() const`：让对象能用在 `if (p)` / `!p` 里，
+  但**禁止**隐式转成整数。
+- `Reset(T* p = nullptr)`：删旧的、接管新的；本题要求对 `p == Get()` 短路。
+- `Release()`：交出裸指针、自己变空，不删对象。
+- `Swap(MyUniquePtr&)`：O(1) 交换两个指针。
+
+**为什么**：
+
+- **为什么要 `explicit`**：不加的话，`bool` 可以隐式提升为 `int`，于是 `p + 1`、`p == 2`、
+  `p << 3` 这种东西会莫名其妙地编译通过（语义还不隷）。加上 `explicit` 后，只有显式要求布尔语境的
+  地方（`if`、`!`、`&&`、`||`、`static_cast<bool>`）才转换。
+- **为什么本题的 `Reset` 要做 `p == Get()` 短路**：标准库 `reset` 的语义是“先记 old，再设 p，
+  再无条件 delete old”，所以 `up.reset(up.get())` 会 double free（见 `stage5.md` 1.3）。
+  本题故意做成“同指针就直接返回”的版本，这是有意与标准库不同。
+- **为什么移动要 `noexcept`**：容器扩容时会看这个标记选移动还是拷贝（见 `stage1.md` 1.8）。
+
+**常见用法**：
+
+```cpp
+MyUniquePtr<Foo> p(new Foo(1));
+if (p) { p->Method(); }              // explicit operator bool
+p.Reset(new Foo(2));                 // 删旧的、接管新的
+Foo* raw = p.Release();              // 交出去，自己变空
+// ... 用 raw ... 然后 delete raw;
+MyUniquePtr<Foo> q;
+p.Swap(q);                           // 交换
+```
+
+- 想让 `std::swap(a, b)` 也能用，可以提供成员 `Swap` 或 ADL 的 `friend void swap(MyUniquePtr&, MyUniquePtr&)`。
+- **默认构造写成 `constexpr ... noexcept = default`**：指针成员给默认值 `nullptr`，
+  这样空指针可以在编译期构造（比如 `constexpr MyUniquePtr<Foo> kEmpty;`）。
+
+**什么时候用**：写任何“可空的堆对象句柄”包装时。
+
+**一个跟本题无关的例子**：一个管理 `FILE*` 的 RAII 包装也能用同样的五件套，
+其中 `explicit operator bool` 表示“文件开成功了”，`Release` 表示“交给 C API 接管”。
 
 ### 1.4 BufferPool 的模型：帧、空闲帧表、页表
 
@@ -118,6 +219,39 @@ if (it != page_table_.end()) return &frames_[it->second];   // 等待期间被�
 `Unpin` 了这一页、帧又被新页复用，指针指向的内容就会变。真实 buffer pool 必须有 pin count + latch
 来保证"被 pin 的页不会被回收"，这是留给 15-445 Project 2 的功课。测评里有一个测试点专门演示这个局限。
 
+### 1.6 `std::array` 与 `std::vector<Page>` 里的 `Page`
+
+**是什么**：`std::array<T, N>` 是一个固定长度数组的轻量包装（聚合类型，支持整体拷贝/赋值、
+值初始化、`size()`）。`Page` 里的 `std::array<int, 8> data` 就是它。
+
+**为什么需要它**：C 数组会退化成指针、不知道自己的大小，不能整体赋值；
+`std::array` 既保留了固定大小与非堆分配，又能像普通对象一样拷贝/传递。
+相比 `std::vector`，它没有堆分配开销。
+
+**常见用法**：
+
+```cpp
+struct Page {
+  int page_id = -1;                   // 默认值
+  std::array<int, 8> data{};          // {} 保证每个元素被值初始化（全 0）
+};
+Page p;                                // page_id == -1，data 全 0
+p.data.fill(0);                        // 整体清零
+std::array<int, 3> a{1, 2, 3};         // 初始化
+```
+
+**什么时候用**：大小在编译期固定、且不想付出堆分配代价的小缓冲区。
+
+**一个跟本题无关的例子**：固定 16 字节的 UUID、固定大小的哈希桶、颜色分量 `array<float, 4>`。
+
+**为什么 `std::vector<Page> frames_` 没问题**：`vector` 要求元素**可移动**（扩容时要搬家）。
+`Page` 只含一个 `int` 和一个 `array`，天然可拷贝、可移动，所以能放进 `vector`。
+`std::vector<Page> frames_(frame_count)` 会默认构造每个 `Page`，
+`data{}` 与 `page_id = -1` 的默认值就是这个意思。
+
+**与 P6.2 的对比**：如果 `Page` 里含 `std::mutex`（不可移动），就不能放 `vector`，那时应该用
+`std::deque`（见 `stage6.md` 1.10）。
+
 ---
 
 ## 2. 主线题目
@@ -131,6 +265,9 @@ if (it != page_table_.end()) return &frames_[it->second];   // 等待期间被�
 - **复制过来的测评文件**：`tests/stage7/p7_1_my_unique_ptr_test.cpp`。测评点数：19。
 
 **测评程序会用到的接口（名字必须一致）：**
+
+> ⚠️ **命名空间**：测评文件里写着 `using namespace myptr7;`，所以 `MyUniquePtr` 和 `MyMakeUnique`
+> 必须放在 `namespace myptr7` 里。
 
 ```cpp
 template <typename T>
@@ -156,11 +293,16 @@ template <typename T, typename... Args>
 MyUniquePtr<T> MyMakeUnique(Args&&... args);
 ```
 
-还要自己补上：
+**下面这些你必须自己想清楚、自己补上（只给要求，不给能直接复制的代码）：**
 
-- 一个**默认构造**，构造出空指针，并且是 `constexpr`、`noexcept` 的；
+- **内部成员**：就一个裸指针 `T*`（名字自定，比如 `ptr_`），默认值 `nullptr`。所有操作都围绕它。
+- 一个**默认构造**，构造出空指针，并且是 `constexpr`、`noexcept` 的（可以做 `= default`，
+  前提是成员有默认值）；
 - 拷贝构造、拷贝赋值**必须禁止**（独占所有权）；
-- 移动赋值里的 self-move 防护，以及 `Reset` 对 `p == Get()` 的短路（理由见 1.3）。
+- 移动构造：接管对方指针、把对方置空，标 `noexcept`；
+- 移动赋值：先做 self-move 防护，然后释放自己的旧资源、再接管；
+- `Reset` 对 `p == Get()` 的短路（理由见 1.3）；
+- `MyMakeUnique` 要把参数完美转发给 `T` 的构造函数，不能引入拷贝（见 1.2）。
 
 **为什么是这些签名：**
 
@@ -206,6 +348,9 @@ g++ -std=c++17 p7_1_my_unique_ptr_test.cpp -I../../tests -o p7_1 && ./p7_1
 
 **测评程序会用到的接口（名字必须一致）：**
 
+> ⚠️ **命名空间**：测评文件里写着 `using namespace bp7;`，所以 `Page` 和 `MiniBufferPool`
+> 必须放在 `namespace bp7` 里。
+
 ```cpp
 struct Page {
   int page_id;                     // 页号；测评会读它
@@ -239,6 +384,22 @@ public:
 - `FrameCount()` 是固定的 `frame_count`，不需要加锁（构造后不变）。
 - 共享状态用一把 `std::mutex` + 一个 `std::condition_variable` 保护；`NumPages/FreeFrames/GetStats/HasPage`
   是 const 成员，所以 mutex 要 `mutable`。
+
+**下面这些你必须自己想清楚、自己补上（只给要求，不给能直接复制的代码）：**
+
+- **`Page` 的成员**：一个 `int page_id`（默认 -1）和一个 `std::array<int,8> data`（默认全 0）。
+  构造时要把 `data` 清零（`data.fill(0)` 或 `data{}`，见 1.6）。
+- **`MiniBufferPool` 的成员**：一个 `std::vector<Page> frames_`（固定长度，`frame_count` 个）、
+  一个 `std::vector<size_t> free_list_`（空闲帧下标）、一个 `std::unordered_map<int,size_t> page_table_`
+  （`page_id → 帧下标`）、一把 `mutable std::mutex`、一个 `std::condition_variable`。名字自定。
+- **构造**：`frames_` 开好 `frame_count` 个，`free_list_` 装下所有帧下标（顺序无所谓）。
+- **`Pin` 的等待谓词**（关键，见 1.5 陷阱一）：必须同时包含
+  “这页已经在 `page_table_` 里” **或** “`free_list_` 非空”两个条件；醒来后再先查一次 `page_table_`，
+  如果已被别人装进来就直接返回那个帧——不能直接分配新帧并覆盖（否则帧会泄遯）。
+- **`GetStats`**：在一次加锁里同时读 `page_table_.size()` 和 `free_list_.size()`（见 1.5 陷阱二）。
+- **`Unpin`**：找不到就无害返回；找到就先把帧下标 `push_back` 进 `free_list_`、再 `erase` 页面表项，
+  解锁后再 `notify_all`。同一页 `Unpin` 两次不能多还一个帧。
+- **`FrameCount()`**：直接返回 `frames_.size()`，不需要加锁（构造后不变）。
 
 **要做的事**：实现 `Page` 和 `MiniBufferPool`。内部用固定长度的帧数组 + 空闲帧列表 + `page_id → 帧下标`
 的映射；等待用条件变量。
