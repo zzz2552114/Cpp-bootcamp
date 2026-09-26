@@ -109,7 +109,7 @@ P4.1 会用"数据起始地址有没有变"这个可观测量来证明上面的�
 
 ```cpp
 std::vector<int> v{1, 2, 3};
-int& first = v[0];
+int& first = v[0];     // 这里引用本质上是原来 v[0] 地址里的内容的别名，扩容后内容变成 UB
 v.push_back(4);        // 可能扩容 → first 悬垂
 // first = 5;          // 若真的扩容了，这行就是 UB
 ```
@@ -746,5 +746,19 @@ bash ../../tests/stage4/tests/run_tests.sh ./cli
 ```
 
 通过标准：最后一行 `---------------- AC 14 / 14 ----------------`。
+
+> **Windows 宿主机（Git Bash + MinGW g++）注意**：上面两条命令直接跑，结果会是 `AC 1 / 14`——
+> 不是你代码错了，而是 Windows 的标准输出默认是**文本模式**，程序写的每个 `\n` 都会被 C 运行时
+> 偷偷改成 `\r\n`，与 LF 换行的 `.ans` 逐字节比对自然不过；唯一能过的是 0 字节输出的
+> `case13_no_ops`。不改题目文件的解法：让 WSL 里的 g++ 编一个 Linux 版 `cli`，再用
+> `projects/mysol/stage4/cli_wsl.sh` 当转发外壳——
+>
+> ```bash
+> cd projects/mysol/stage4
+> wsl.exe -e bash -c 'g++ -std=c++17 p4_5_log_analyzer_cli.cpp -o cli'   # 改完头文件要重跑这步
+> bash ../../tests/stage4/tests/run_tests.sh ./cli_wsl.sh
+> ```
+>
+> 原理、逐行讲解、踩坑与排查见同目录下的 `p4_5_cli_crlf_wsl.md`。
 
 **自查**：① 为什么必须 `erase(remove_if(...), end())` 而不能只调 `remove_if`？② `[&level]` 和 `[level]` 有什么区别？③ 遍历 `unordered_map` 用结构化绑定拿到的 key 为什么是 `const`？
