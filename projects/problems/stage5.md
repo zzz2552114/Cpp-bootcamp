@@ -263,6 +263,8 @@ struct Node { std::shared_ptr<Node> next; };   // A→B→A 成环
 class Source {
  public:
   void Subscribe(const std::shared_ptr<Observer>& o) { subs_.push_back(o); }
+  // subs_ 的类型是 std::vector<std::weak_ptr<Observer>>
+  // std::weak_ptr 可以从 std::shared_ptr 隐式构造
   void Notify() {
     for (auto& w : subs_) if (auto o = w.lock()) o->OnEvent();   // 已死的自动跳过
   }
@@ -424,6 +426,7 @@ int  TakeAndDestroy(std::unique_ptr<Widget> up);            // 按值收下，�
   这是"我只看看、不参与生命周期"的接口。
 - `Take(std::unique_ptr<Widget> up)` **按值**接收：调用者必须 `std::move(up)` 才能传进来
   （因为 `unique_ptr` 不可拷贝），函数结束后由被调用者负责释放。测评检查移动后源为空。
+- Take 函数不留下这个对象，也不销毁它，而是把“谁负责释放它”的身份从函数内部的参数，转交给函数的返回值。
 - `Make` 返回新所有权，用 `std::make_unique<Widget>(v)`。
 - `ResetKeepingSamePointer` 演示 1.3 的安全写法：`Widget* owned = up.release(); up.reset(owned);`。
   注意**不要**写成 `up.reset(up.get())`，那会 double free。
