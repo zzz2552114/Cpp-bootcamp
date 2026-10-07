@@ -395,6 +395,7 @@ P6.2 的 `TotalBalance` 写成**模板**就是为了能接 `std::deque<Account>`
 struct UnsafeCounter {              // 反面教材：无锁
   int value;                        // 公开：测评直接读它
   void Increment(int iters);        // 每次：读 value → yield → 写回 value+1
+  // 运行 iters 次
 };
 
 struct LockedCounter {              // 手写 lock / unlock
@@ -479,6 +480,7 @@ public:
   void Transfer(Account& other, int money);   // 先从本账户扣，再加到 other
   int  Balance() const;                       // 线程安全
   void Deposit(int money);                    // 线程安全
+  // Deposit 
 };
 
 // 求和；用模板是为了能接收 std::deque<Account>（Account 含 mutex，不可移动）
