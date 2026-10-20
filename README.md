@@ -75,6 +75,8 @@ projects/
 
 ### 构建与测试
 
+> **环境要求：必须是 Linux。**
+
 每个 Project 要求你实现一个头文件（例如 `p1_1_statistics.h`），测评程序（例如
 `p1_1_statistics_test.cpp`）自带 `main()`。把测评文件复制到你的头文件旁边，用**尽可能精简的命令**编译：
 
